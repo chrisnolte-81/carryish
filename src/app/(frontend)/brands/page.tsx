@@ -12,12 +12,28 @@ export const revalidate = 600
 export default async function BrandsPage() {
   const payload = await getPayload({ config: configPromise })
 
-  const brands = await payload.find({
-    collection: 'brands',
-    depth: 1,
-    limit: 50,
-    sort: 'name',
-  })
+  const [brands, products] = await Promise.all([
+    payload.find({
+      collection: 'brands',
+      depth: 1,
+      limit: 50,
+      sort: 'name',
+    }),
+    payload.find({
+      collection: 'products',
+      depth: 0,
+      limit: 200,
+      where: { _status: { equals: 'published' } },
+      select: { brand: true },
+    }),
+  ])
+
+  // Count products per brand
+  const productCounts: Record<number, number> = {}
+  for (const product of products.docs) {
+    const brandId = typeof product.brand === 'object' ? product.brand?.id : product.brand
+    if (brandId) productCounts[brandId] = (productCounts[brandId] || 0) + 1
+  }
 
   return (
     <div className="bg-[#FAFAF8] min-h-screen">
@@ -27,49 +43,71 @@ export default async function BrandsPage() {
             Brands
           </h1>
           <p className="mt-3 text-[#7A7A8C] text-lg max-w-2xl">
-            {brands.totalDocs} brands in our catalog. Each one reviewed with honest opinions.
+            {brands.totalDocs} brands we cover. Each one reviewed with honest opinions and real tradeoffs.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-          {brands.docs.map((brand) => (
-            <Link
-              key={brand.id}
-              href={`/brands/${brand.slug}`}
-              className="group block bg-[#FAFAF8] border border-[#7A7A8C]/15 rounded-[10px] overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 no-underline"
-            >
-              {brand.logo && typeof brand.logo === 'object' ? (
-                <div className="relative aspect-[2/1] w-full bg-[#F5F5F3]">
-                  <Media
-                    resource={brand.logo}
-                    imgClassName="object-contain w-full h-full p-6"
-                    fill
-                  />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+          {brands.docs.map((brand) => {
+            const count = productCounts[brand.id] || 0
+            const hasRealLogo = brand.logo && typeof brand.logo === 'object' && brand.logoStatus === 'uploaded'
+
+            return (
+              <Link
+                key={brand.id}
+                href={`/brands/${brand.slug}`}
+                className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300 no-underline"
+              >
+                {/* Logo / visual area */}
+                {hasRealLogo ? (
+                  <div className="relative aspect-[2.2/1] w-full bg-[#F8F7F5]">
+                    <Media
+                      resource={brand.logo as any}
+                      imgClassName="object-contain w-full h-full p-8"
+                      fill
+                    />
+                  </div>
+                ) : (
+                  <div className="relative aspect-[2.2/1] w-full bg-gradient-to-br from-[#1A1A2E] to-[#2D2D44] flex items-center justify-center">
+                    <span className="font-[family-name:var(--font-fraunces)] text-2xl sm:text-3xl font-semibold text-white/90 tracking-tight">
+                      {brand.name}
+                    </span>
+                    {count > 0 && (
+                      <span className="absolute bottom-3 right-3 text-[10px] font-medium text-white/40 bg-white/10 px-2.5 py-1 rounded-full">
+                        {count} {count === 1 ? 'bike' : 'bikes'}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Card body */}
+                <div className="flex flex-col flex-1 p-5">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <h2 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors">
+                      {brand.name}
+                    </h2>
+                    {hasRealLogo && count > 0 && (
+                      <span className="text-[11px] font-medium text-[#7A7A8C] bg-[#1A1A2E]/[0.04] px-2.5 py-1 rounded-full shrink-0">
+                        {count} {count === 1 ? 'bike' : 'bikes'}
+                      </span>
+                    )}
+                  </div>
+
+                  {brand.description && (
+                    <p className="text-sm text-[#7A7A8C] leading-relaxed line-clamp-2 mt-1">
+                      {brand.description}
+                    </p>
+                  )}
+
+                  <div className="mt-auto pt-4">
+                    <span className="text-xs font-semibold text-[#E85D3A] group-hover:text-[#d14e2d] transition-colors uppercase tracking-wider">
+                      View brand &rarr;
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                <div className="aspect-[2/1] w-full bg-[#F5F5F3] flex items-center justify-center">
-                  <span className="text-2xl font-semibold text-[#7A7A8C]/40 font-[family-name:var(--font-fraunces)]">
-                    {brand.name}
-                  </span>
-                </div>
-              )}
-              <div className="p-6">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors">
-                {brand.name}
-              </h2>
-              {brand.description && (
-                <p className="mt-3 text-sm text-[#7A7A8C] leading-relaxed line-clamp-3">
-                  {brand.description}
-                </p>
-              )}
-              {brand.websiteUrl && (
-                <span className="inline-block mt-4 text-xs text-[#3A8FE8] font-medium">
-                  View brand &rarr;
-                </span>
-              )}
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
       </div>
     </div>

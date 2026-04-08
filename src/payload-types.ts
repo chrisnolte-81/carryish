@@ -810,6 +810,10 @@ export interface Brand {
   logo?: (number | null) | Media;
   websiteUrl?: string | null;
   description?: string | null;
+  /**
+   * Logo pipeline status
+   */
+  logoStatus?: ('needs-logo' | 'placeholder' | 'uploaded') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1046,6 +1050,10 @@ export interface Product {
   category?: ('cargo-bike' | 'stroller' | 'trailer' | 'wagon' | 'accessory') | null;
   affiliateUrl: string;
   publishedAt?: string | null;
+  /**
+   * Image pipeline status
+   */
+  imageStatus?: ('needs-images' | 'scraped' | 'editorial' | 'placeholder') | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -1744,6 +1752,7 @@ export interface BrandsSelect<T extends boolean = true> {
   logo?: T;
   websiteUrl?: T;
   description?: T;
+  logoStatus?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1860,6 +1869,7 @@ export interface ProductsSelect<T extends boolean = true> {
   category?: T;
   affiliateUrl?: T;
   publishedAt?: T;
+  imageStatus?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;

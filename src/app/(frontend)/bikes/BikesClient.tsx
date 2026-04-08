@@ -416,24 +416,23 @@ export function BikesClient({
         </div>
 
         {/* ─── Sort + Result count ─── */}
-        <div className="flex items-center justify-between mb-6 pb-5 border-b border-[#7A7A8C]/10">
-          <span className="text-sm text-[#7A7A8C]">
-            {filtered.length} {filtered.length === 1 ? 'bike' : 'bikes'}
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#1A1A2E]/[0.06]">
+          <span className="text-sm text-[#7A7A8C] tabular-nums">
+            {filtered.length === products.length
+              ? `${filtered.length} ${filtered.length === 1 ? 'bike' : 'bikes'}`
+              : `${filtered.length} of ${products.length} bikes`}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-[#7A7A8C]">Sort:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm bg-white border border-[#7A7A8C]/20 rounded-lg px-3 py-1.5 text-[#1A1A2E] outline-none focus:border-[#3A8FE8] transition-colors cursor-pointer"
-            >
-              {sortOptions.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.icon} {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-sm bg-transparent text-[#7A7A8C] outline-none cursor-pointer hover:text-[#1A1A2E] transition-colors border-none pr-1"
+          >
+            {sortOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.icon} {o.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* ─── Active Filter Chips ─── */}
@@ -461,100 +460,124 @@ export function BikesClient({
         )}
 
         {/* ─── Product Grid ─── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-          {filtered.map((product) => (
-            <Link
-              key={product.id}
-              href={`/bikes/${product.slug}`}
-              className="group block bg-white border border-[#7A7A8C]/10 rounded-xl overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-1 transition-all duration-300 no-underline"
-            >
-              {/* Image area */}
-              <div className="relative aspect-[4/3] w-full bg-[#E8E0D4]">
-                {product.thumbnailImage ? (
-                  <Media resource={product.thumbnailImage} imgClassName="object-cover w-full h-full" fill />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center px-4">
-                      <p className="font-[family-name:var(--font-fraunces)] text-lg text-[#1A1A2E]/60 font-medium">
-                        {product.brand || 'Brand'}
-                      </p>
-                      <p className="font-[family-name:var(--font-fraunces)] text-sm text-[#1A1A2E]/40 mt-1">
-                        {product.name}
-                      </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+          {filtered.map((product) => {
+            const specs = [
+              product.motorTorqueNm && `${product.motorTorqueNm}Nm`,
+              product.estimatedRealRangeMi && `~${product.estimatedRealRangeMi}mi`,
+              product.weightLbs && `${product.weightLbs}lbs`,
+              product.maxChildPassengers != null && product.maxChildPassengers > 0 &&
+                `${product.maxChildPassengers} ${product.maxChildPassengers === 1 ? 'kid' : 'kids'}`,
+            ].filter(Boolean) as string[]
+
+            const layoutLabel = product.cargoLayout
+              ? cargoLayoutOptions.find((o) => o.value === product.cargoLayout)?.label
+              : null
+
+            return (
+              <Link
+                key={product.id}
+                href={`/bikes/${product.slug}`}
+                className="group relative flex flex-col bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300 no-underline"
+              >
+                {/* Image area */}
+                <div className="relative aspect-[4/3] w-full bg-[#F3F1EE] overflow-hidden">
+                  {product.thumbnailImage ? (
+                    <Media resource={product.thumbnailImage} imgClassName="object-cover w-full h-full group-hover:scale-[1.03] transition-transform duration-500" fill />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#F5F3F0] to-[#EBE8E4]">
+                      <div className="w-14 h-14 rounded-2xl bg-white/80 flex items-center justify-center mb-3 shadow-sm">
+                        <svg className="w-7 h-7 text-[#7A7A8C]/50" fill="none" viewBox="0 0 24 24" strokeWidth={1.2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                        </svg>
+                      </div>
+                      <span className="text-xs font-medium text-[#7A7A8C]/60 tracking-wide uppercase">
+                        Photo coming soon
+                      </span>
                     </div>
-                  </div>
-                )}
-
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex gap-1.5">
-                  {product.testingStatus === 'tested' && (
-                    <span className="bg-[#E85D3A] text-white text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md shadow-sm">
-                      Tested
-                    </span>
                   )}
-                </div>
 
-                {/* Score badge */}
-                {product.overallScore && (
-                  <div className="absolute top-3 right-3 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm">
-                    <span className="text-sm font-bold text-[#1A1A2E]">{product.overallScore}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Card body */}
-              <div className="p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <h3 className="font-[family-name:var(--font-fraunces)] text-base font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors truncate">
-                      {product.name}
-                    </h3>
-                    {product.brand && (
-                      <span className="text-sm text-[#7A7A8C]">{product.brand}</span>
+                  {/* Badges */}
+                  <div className="absolute top-3 left-3 flex gap-1.5">
+                    {product.testingStatus === 'tested' && (
+                      <span className="bg-[#E85D3A] text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
+                        Tested
+                      </span>
                     )}
                   </div>
-                  {product.price > 0 && (
-                    <span className="text-base font-semibold text-[#1A1A2E] shrink-0">
-                      ${product.price.toLocaleString()}
-                    </span>
+
+                  {/* Score badge */}
+                  {product.overallScore && (
+                    <div className="absolute top-3 right-3 w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
+                      <span className="text-sm font-bold text-[#1A1A2E]">{product.overallScore}</span>
+                    </div>
                   )}
                 </div>
 
-                {/* Mini specs row */}
-                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-[#7A7A8C]">
-                  {product.motorTorqueNm && <span>{product.motorTorqueNm}Nm</span>}
-                  {product.estimatedRealRangeMi && <span>~{product.estimatedRealRangeMi}mi</span>}
-                  {product.weightLbs && <span>{product.weightLbs}lbs</span>}
-                  {product.maxChildPassengers != null && product.maxChildPassengers > 0 && (
-                    <span>{product.maxChildPassengers} {product.maxChildPassengers === 1 ? 'kid' : 'kids'}</span>
-                  )}
-                </div>
-
-                {/* Best-for tags */}
-                {product.bestFor.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {product.bestFor.slice(0, 3).map((tag) => (
-                      <span key={tag} className="text-[10px] font-medium bg-[#1A1A2E]/4 text-[#7A7A8C] px-2 py-0.5 rounded-full">
-                        {tag}
+                {/* Card body */}
+                <div className="flex flex-col flex-1 p-5">
+                  {/* Brand + layout */}
+                  <div className="flex items-center gap-2 mb-1">
+                    {product.brand && (
+                      <span className="text-[11px] font-semibold text-[#7A7A8C] uppercase tracking-wider">
+                        {product.brand}
                       </span>
-                    ))}
+                    )}
+                    {product.brand && layoutLabel && (
+                      <span className="text-[#7A7A8C]/30">|</span>
+                    )}
+                    {layoutLabel && (
+                      <span className="text-[11px] text-[#7A7A8C]/70 tracking-wide">
+                        {layoutLabel}
+                      </span>
+                    )}
                   </div>
-                )}
 
-                {/* Compare */}
+                  {/* Name + price */}
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="font-[family-name:var(--font-fraunces)] text-[1.05rem] font-semibold text-[#1A1A2E] leading-snug group-hover:text-[#E85D3A] transition-colors">
+                      {product.name}
+                    </h3>
+                    {product.price > 0 && (
+                      <span className="text-[15px] font-bold text-[#1A1A2E] shrink-0 tabular-nums">
+                        ${product.price.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Specs */}
+                  {specs.length > 0 && (
+                    <p className="mt-2.5 text-xs text-[#7A7A8C]">
+                      {specs.join(' \u00B7 ')}
+                    </p>
+                  )}
+
+                  {/* Best-for tags */}
+                  {product.bestFor.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-auto pt-3">
+                      {product.bestFor.slice(0, 3).map((tag) => (
+                        <span key={tag} className="text-[10px] font-medium bg-[#1A1A2E]/[0.04] text-[#1A1A2E]/60 px-2.5 py-1 rounded-full">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Compare — bottom-right, visible on hover or when active */}
                 <button
                   onClick={(e) => toggleCompare(product.slug, e)}
-                  className={`mt-4 text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-150 cursor-pointer ${
+                  className={`absolute bottom-4 right-4 text-[11px] font-medium px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer ${
                     compareList.includes(product.slug)
-                      ? 'bg-[#3A8FE8] text-white border-[#3A8FE8]'
-                      : 'bg-transparent text-[#7A7A8C] border-[#7A7A8C]/20 hover:border-[#3A8FE8] hover:text-[#3A8FE8]'
+                      ? 'bg-[#3A8FE8] text-white border-[#3A8FE8] opacity-100'
+                      : 'bg-white/90 backdrop-blur-sm text-[#7A7A8C] border-[#7A7A8C]/15 opacity-0 group-hover:opacity-100 hover:border-[#3A8FE8] hover:text-[#3A8FE8]'
                   }`}
                 >
                   {compareList.includes(product.slug) ? '✓ Comparing' : '+ Compare'}
                 </button>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
 
         {/* Empty state */}
