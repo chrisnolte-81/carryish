@@ -4,8 +4,8 @@ import { anyone } from '../access/anyone'
 import { authenticated } from '../access/authenticated'
 import { slugField } from 'payload'
 
-export const Categories: CollectionConfig = {
-  slug: 'categories',
+export const Brands: CollectionConfig = {
+  slug: 'brands',
   access: {
     create: authenticated,
     delete: authenticated,
@@ -13,24 +13,29 @@ export const Categories: CollectionConfig = {
     update: authenticated,
   },
   admin: {
-    useAsTitle: 'title',
+    useAsTitle: 'name',
   },
   fields: [
     {
-      name: 'title',
+      name: 'name',
       type: 'text',
       required: true,
+    },
+    slugField({
+      fieldToUse: 'name',
+    }),
+    {
+      name: 'logo',
+      type: 'upload',
+      relationTo: 'media',
+    },
+    {
+      name: 'websiteUrl',
+      type: 'text',
     },
     {
       name: 'description',
       type: 'textarea',
     },
-    {
-      name: 'icon',
-      type: 'text',
-    },
-    slugField({
-      position: undefined,
-    }),
   ],
 }
