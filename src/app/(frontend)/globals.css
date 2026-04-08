@@ -3,7 +3,6 @@
 
 @config '../../../tailwind.config.mjs';
 
-@custom-variant dark (&:is([data-theme='dark'] *));
 @custom-variant sm (@media (width >= theme(--breakpoint-sm)));
 @custom-variant md (@media (width >= theme(--breakpoint-md)));
 @custom-variant lg (@media (width >= theme(--breakpoint-lg)));
@@ -87,13 +86,13 @@
   }
 }
 
-/* Carryish brand colors */
+/* Carryish brand colors — light editorial theme, no dark mode */
 /* Coral Fire: #E85D3A | Midnight: #1A1A2E | Open Sky: #3A8FE8 | Canvas: #FAFAF8 | Slate: #7A7A8C */
 
 :root {
   --background: #FAFAF8;
   --foreground: #1A1A2E;
-  --card: #FFFFFF;
+  --card: #FAFAF8;
   --card-foreground: #1A1A2E;
   --popover: #FFFFFF;
   --popover-foreground: #1A1A2E;
@@ -127,44 +126,6 @@
   --success: #16A34A;
   --warning: #CA8A04;
   --error: #DC2626;
-}
-
-[data-theme='dark'] {
-  --background: #1A1A2E;
-  --foreground: #FAFAF8;
-  --card: #242440;
-  --card-foreground: #FAFAF8;
-  --popover: #1A1A2E;
-  --popover-foreground: #FAFAF8;
-  --primary: #E85D3A;
-  --primary-foreground: #FFFFFF;
-  --secondary: #2A2A44;
-  --secondary-foreground: #FAFAF8;
-  --muted: #2A2A44;
-  --muted-foreground: #9A9AAC;
-  --accent: #2A2A44;
-  --accent-foreground: #FAFAF8;
-  --destructive: #7F1D1D;
-  --destructive-foreground: #EF4444;
-  --border: #2A2A44;
-  --input: #2A2A44;
-  --ring: #3A8FE8;
-  --chart-1: #E85D3A;
-  --chart-2: #3A8FE8;
-  --chart-3: #FAFAF8;
-  --chart-4: #9A9AAC;
-  --chart-5: #2A2A44;
-  --sidebar: #1A1A2E;
-  --sidebar-foreground: #FAFAF8;
-  --sidebar-primary: #E85D3A;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #2A2A44;
-  --sidebar-accent-foreground: #FAFAF8;
-  --sidebar-border: #2A2A44;
-  --sidebar-ring: #3A8FE8;
-  --success: #166534;
-  --warning: #854D0E;
-  --error: #991B1B;
 }
 
 @theme inline {
@@ -215,14 +176,30 @@
   }
   body {
     @apply bg-background text-foreground min-h-[100vh] flex flex-col;
+    font-size: 16px;
+    line-height: 1.65;
   }
 }
 
-html {
-  opacity: 0;
+/* Animations */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-html[data-theme='dark'],
-html[data-theme='light'] {
-  opacity: initial;
+/* Subtle paper texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }

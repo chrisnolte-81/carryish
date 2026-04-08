@@ -41,6 +41,7 @@ export const Products: CollectionConfig<'products'> = {
     {
       type: 'tabs',
       tabs: [
+        // ─── Content ───
         {
           label: 'Content',
           fields: [
@@ -54,43 +55,303 @@ export const Products: CollectionConfig<'products'> = {
               name: 'carryishTake',
               type: 'richText',
               editor: lexicalEditor({
-                features: ({ rootFeatures }) => {
-                  return [
-                    ...rootFeatures,
-                    HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
-                    FixedToolbarFeature(),
-                    InlineToolbarFeature(),
-                  ]
-                },
+                features: ({ rootFeatures }) => [
+                  ...rootFeatures,
+                  HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
+                  FixedToolbarFeature(),
+                  InlineToolbarFeature(),
+                ],
               }),
             },
+            {
+              name: 'testingStatus',
+              type: 'select',
+              options: [
+                { label: 'Tested by Carryish', value: 'tested' },
+                { label: 'Based on specs and owner reviews', value: 'specs-only' },
+              ],
+              defaultValue: 'specs-only',
+            },
+            {
+              name: 'bestFor',
+              type: 'array',
+              admin: { description: 'Tags like "School runs", "Hilly terrain", "2+ kids"' },
+              fields: [{ name: 'tag', type: 'text', required: true }],
+            },
           ],
         },
+
+        // ─── Carryish Scores ───
         {
-          label: 'Specs',
+          label: 'Scores',
+          fields: [
+            { name: 'overallScore', type: 'number', min: 1, max: 10, admin: { description: 'Overall Carryish score (1-10)' } },
+            { name: 'hillScore', type: 'number', min: 1, max: 10, admin: { description: 'Hill performance' } },
+            { name: 'cargoScore', type: 'number', min: 1, max: 10, admin: { description: 'Cargo capacity rating' } },
+            { name: 'rangeScore', type: 'number', min: 1, max: 10, admin: { description: 'Real-world range rating' } },
+            { name: 'valueScore', type: 'number', min: 1, max: 10, admin: { description: 'Price vs capability' } },
+            { name: 'familyScore', type: 'number', min: 1, max: 10, admin: { description: 'Family-friendliness' } },
+          ],
+        },
+
+        // ─── Motor & Power ───
+        {
+          label: 'Motor & Power',
+          fields: [
+            { name: 'motorBrand', type: 'text', admin: { description: 'Bosch, Shimano, Bafang, etc.' } },
+            {
+              name: 'motorPosition',
+              type: 'select',
+              options: [
+                { label: 'Mid-drive', value: 'mid-drive' },
+                { label: 'Hub (rear)', value: 'hub-rear' },
+                { label: 'Hub (front)', value: 'hub-front' },
+              ],
+            },
+            { name: 'motorNominalWatts', type: 'number', admin: { description: 'Rated watts' } },
+            { name: 'motorPeakWatts', type: 'number', admin: { description: 'Peak watts' } },
+            { name: 'motorTorqueNm', type: 'number', admin: { description: 'Torque in Nm' } },
+            { name: 'pedalAssistLevels', type: 'number' },
+            {
+              name: 'throttle',
+              type: 'select',
+              options: [
+                { label: 'None', value: 'none' },
+                { label: 'Thumb', value: 'thumb' },
+                { label: 'Twist', value: 'twist' },
+                { label: 'Pedal-activated', value: 'pedal-activated' },
+              ],
+            },
+            { name: 'topSpeedMph', type: 'number' },
+            {
+              name: 'bikeClass',
+              type: 'select',
+              options: [
+                { label: 'Class 1', value: 'class-1' },
+                { label: 'Class 2', value: 'class-2' },
+                { label: 'Class 3', value: 'class-3' },
+              ],
+            },
+            // Legacy fields for backward compat
+            { name: 'motorType', type: 'text', admin: { description: 'Legacy motor description' } },
+          ],
+        },
+
+        // ─── Battery & Range ───
+        {
+          label: 'Battery & Range',
+          fields: [
+            { name: 'batteryBrand', type: 'text' },
+            { name: 'batteryWh', type: 'number' },
+            { name: 'batteryVolts', type: 'number' },
+            { name: 'batteryRemovable', type: 'checkbox' },
+            { name: 'dualBatteryCapable', type: 'checkbox' },
+            { name: 'dualBatteryWh', type: 'number', admin: { description: 'Total Wh with both batteries' } },
+            { name: 'statedRangeMi', type: 'number', admin: { description: 'Manufacturer range claim (miles)' } },
+            { name: 'estimatedRealRangeMi', type: 'number', admin: { description: 'Our estimate with load (miles)' } },
+            { name: 'chargeTimeHours', type: 'number' },
+            // Legacy
+            { name: 'batteryRange', type: 'text', admin: { description: 'Legacy range description' } },
+          ],
+        },
+
+        // ─── Dimensions & Weight ───
+        {
+          label: 'Dimensions',
+          fields: [
+            { name: 'weightLbs', type: 'number' },
+            { name: 'maxSystemWeightLbs', type: 'number', admin: { description: 'Total rider + cargo + bike' } },
+            { name: 'cargoCapacityLbs', type: 'number', admin: { description: 'Cargo area only (lbs)' } },
+            { name: 'lengthInches', type: 'number' },
+            { name: 'wheelbaseInches', type: 'number' },
+            { name: 'standoverHeightInches', type: 'number' },
+            { name: 'riderHeightMin', type: 'text', admin: { description: 'e.g. 5\'1"' } },
+            { name: 'riderHeightMax', type: 'text', admin: { description: 'e.g. 6\'5"' } },
+            { name: 'foldable', type: 'checkbox' },
+            { name: 'fitsInElevator', type: 'checkbox' },
+            // Legacy
+            { name: 'weight', type: 'text', admin: { description: 'Legacy weight text' } },
+            { name: 'cargoCapacity', type: 'text', admin: { description: 'Legacy capacity text' } },
+          ],
+        },
+
+        // ─── Drivetrain & Brakes ───
+        {
+          label: 'Drivetrain',
           fields: [
             {
-              name: 'price',
-              type: 'number',
+              name: 'drivetrainType',
+              type: 'select',
+              options: [
+                { label: 'Chain', value: 'chain' },
+                { label: 'Belt', value: 'belt' },
+                { label: 'Shaft', value: 'shaft' },
+              ],
             },
+            { name: 'drivetrainBrand', type: 'text', admin: { description: 'Shimano, SRAM, Enviolo, Gates' } },
             {
-              name: 'weight',
-              type: 'text',
+              name: 'gearType',
+              type: 'select',
+              options: [
+                { label: 'Derailleur', value: 'derailleur' },
+                { label: 'Internal hub', value: 'internal-hub' },
+                { label: 'CVP', value: 'cvp' },
+                { label: 'Single speed', value: 'single-speed' },
+              ],
             },
+            { name: 'numberOfGears', type: 'number' },
+            { name: 'brakeBrand', type: 'text' },
             {
-              name: 'cargoCapacity',
-              type: 'text',
+              name: 'brakeType',
+              type: 'select',
+              options: [
+                { label: 'Hydraulic disc', value: 'hydraulic-disc' },
+                { label: 'Mechanical disc', value: 'mechanical-disc' },
+                { label: 'Rim', value: 'rim' },
+              ],
             },
+            { name: 'brakeRotorSizeMm', type: 'text', admin: { description: 'e.g. 180/203' } },
+          ],
+        },
+
+        // ─── Wheels & Tires ───
+        {
+          label: 'Wheels',
+          fields: [
+            { name: 'frontWheelSize', type: 'text', admin: { description: 'e.g. 20"' } },
+            { name: 'rearWheelSize', type: 'text', admin: { description: 'e.g. 20"' } },
+            { name: 'tireWidthInches', type: 'number', admin: { description: 'e.g. 2.4' } },
+            { name: 'tireBrand', type: 'text' },
+            { name: 'punctureProtection', type: 'checkbox' },
+          ],
+        },
+
+        // ─── Suspension & Comfort ───
+        {
+          label: 'Comfort',
+          fields: [
             {
-              name: 'motorType',
-              type: 'text',
+              name: 'suspensionType',
+              type: 'select',
+              options: [
+                { label: 'Rigid', value: 'rigid' },
+                { label: 'Front', value: 'front' },
+                { label: 'Full', value: 'full' },
+                { label: 'Seatpost', value: 'seatpost' },
+              ],
             },
+            { name: 'suspensionBrand', type: 'text' },
             {
-              name: 'batteryRange',
-              type: 'text',
+              name: 'seatpostType',
+              type: 'select',
+              options: [
+                { label: 'Fixed', value: 'fixed' },
+                { label: 'Suspension', value: 'suspension' },
+                { label: 'Dropper', value: 'dropper' },
+              ],
             },
           ],
         },
+
+        // ─── Cargo & Family ───
+        {
+          label: 'Cargo & Family',
+          fields: [
+            {
+              name: 'cargoLayout',
+              type: 'select',
+              options: [
+                { label: 'Longtail', value: 'longtail' },
+                { label: 'Front-box', value: 'front-box' },
+                { label: 'Compact', value: 'compact' },
+                { label: 'Midtail', value: 'midtail' },
+                { label: 'Trike', value: 'trike' },
+              ],
+            },
+            { name: 'maxChildPassengers', type: 'number' },
+            { name: 'childSeatCompatibility', type: 'text', admin: { description: 'e.g. Thule Yepp, custom' } },
+            { name: 'hasIntegratedChildSeats', type: 'checkbox' },
+            { name: 'hasSeatbelts', type: 'checkbox' },
+            { name: 'hasFootboards', type: 'checkbox' },
+            { name: 'hasWheelGuards', type: 'checkbox' },
+            { name: 'hasRainCover', type: 'checkbox' },
+            { name: 'rainCoverAvailable', type: 'checkbox' },
+            { name: 'frontRack', type: 'checkbox' },
+            { name: 'rearRack', type: 'checkbox' },
+            { name: 'rackSystem', type: 'text', admin: { description: 'MIK, proprietary, standard' } },
+          ],
+        },
+
+        // ─── Safety & Security ───
+        {
+          label: 'Safety',
+          fields: [
+            { name: 'integratedLights', type: 'checkbox' },
+            { name: 'turnSignals', type: 'checkbox' },
+            { name: 'absAvailable', type: 'checkbox' },
+            { name: 'gpsTracking', type: 'checkbox' },
+            { name: 'alarm', type: 'checkbox' },
+            { name: 'lockingKickstand', type: 'checkbox' },
+          ],
+        },
+
+        // ─── Included & Extras ───
+        {
+          label: 'Extras',
+          fields: [
+            { name: 'includedAccessories', type: 'textarea', admin: { description: 'What comes in the box' } },
+            {
+              name: 'kickstandType',
+              type: 'select',
+              options: [
+                { label: 'Single', value: 'single' },
+                { label: 'Double-leg', value: 'double-leg' },
+                { label: 'None', value: 'none' },
+              ],
+            },
+            { name: 'fenders', type: 'checkbox' },
+            { name: 'display', type: 'text', admin: { description: 'e.g. Bosch Kiox 500, LCD' } },
+          ],
+        },
+
+        // ─── Purchase Info ───
+        {
+          label: 'Purchase',
+          fields: [
+            { name: 'price', type: 'number', admin: { description: 'MSRP in USD' } },
+            { name: 'streetPriceUsd', type: 'number', admin: { description: 'Common selling price if different' } },
+            { name: 'availableIn', type: 'text', admin: { description: 'US, US + EU, Global' } },
+            { name: 'warrantyYears', type: 'number' },
+            { name: 'warrantyDetails', type: 'text' },
+            {
+              name: 'salesModel',
+              type: 'select',
+              options: [
+                { label: 'Direct to consumer', value: 'direct-to-consumer' },
+                { label: 'Dealer', value: 'dealer' },
+                { label: 'Both', value: 'both' },
+              ],
+            },
+            // Price history (future-ready)
+            {
+              name: 'priceHistory',
+              type: 'array',
+              admin: { description: 'Price tracking over time' },
+              fields: [
+                { name: 'date', type: 'date' },
+                { name: 'price', type: 'number' },
+                { name: 'source', type: 'text' },
+              ],
+            },
+            { name: 'currentBestPrice', type: 'number' },
+            { name: 'currentBestPriceSource', type: 'text' },
+            { name: 'currentBestPriceUrl', type: 'text' },
+            { name: 'onSale', type: 'checkbox' },
+            { name: 'saleEndDate', type: 'date' },
+          ],
+        },
+
+        // ─── Meta ───
         {
           label: 'Meta',
           fields: [
@@ -137,6 +398,21 @@ export const Products: CollectionConfig<'products'> = {
             return value
           },
         ],
+      },
+    },
+    {
+      name: 'imageStatus',
+      type: 'select',
+      options: [
+        { label: 'Needs images', value: 'needs-images' },
+        { label: 'Has scraped images', value: 'scraped' },
+        { label: 'Has editorial images', value: 'editorial' },
+        { label: 'Has placeholder', value: 'placeholder' },
+      ],
+      defaultValue: 'needs-images',
+      admin: {
+        position: 'sidebar',
+        description: 'Image pipeline status',
       },
     },
     slugField(),

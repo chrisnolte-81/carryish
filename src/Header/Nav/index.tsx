@@ -11,11 +11,13 @@ export const HeaderNav: React.FC<{ data: HeaderType }> = () => {
 
   const links = [
     { href: '/bikes', label: 'Bikes' },
+    { href: '/brands', label: 'Brands' },
+    { href: '/posts', label: 'Blog' },
     { href: '/about', label: 'About' },
   ]
 
   return (
-    <nav className="flex gap-6 items-center">
+    <nav className="flex gap-5 items-center">
       {links.map(({ href, label }) => (
         <Link
           key={href}
@@ -29,6 +31,12 @@ export const HeaderNav: React.FC<{ data: HeaderType }> = () => {
           {label}
         </Link>
       ))}
+      <Link
+        href="/quiz"
+        className="text-sm font-medium no-underline px-4 py-2 bg-[#E85D3A] text-white rounded-lg hover:bg-[#d14e2d] transition-colors"
+      >
+        Find Your Bike
+      </Link>
     </nav>
   )
 }

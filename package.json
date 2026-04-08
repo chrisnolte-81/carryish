@@ -19,9 +19,14 @@
     "start": "cross-env NODE_OPTIONS=--no-deprecation next start",
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --import=tsx/esm\" playwright test --config=playwright.config.ts",
-    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts"
+    "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
+    "seed:images": "node --import tsx/esm scripts/image-pipeline.ts",
+    "seed:images:brands": "node --import tsx/esm scripts/image-pipeline.ts --brands",
+    "seed:images:products": "node --import tsx/esm scripts/image-pipeline.ts --products"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.68",
+    "@ai-sdk/react": "^3.0.154",
     "@payloadcms/admin-bar": "3.81.0",
     "@payloadcms/db-postgres": "3.81.0",
     "@payloadcms/live-preview-react": "3.81.0",
@@ -38,6 +43,8 @@
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
+    "@vercel/analytics": "^2.0.1",
+    "ai": "^6.0.152",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cross-env": "^7.0.3",
@@ -53,7 +60,8 @@
     "react-dom": "19.2.4",
     "react-hook-form": "7.71.1",
     "sharp": "0.34.2",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

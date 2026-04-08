@@ -28,29 +28,34 @@ export default async function Page() {
   })
 
   return (
-    <div className="pt-24 pb-24">
-      <PageClient />
-      <div className="container mb-16">
-        <div className="prose dark:prose-invert max-w-none">
-          <h1>Posts</h1>
+    <div className="bg-[#FAFAF8] min-h-screen">
+      <div className="container py-20 sm:py-24">
+        <PageClient />
+        <div className="mb-12">
+          <h1 className="font-[family-name:var(--font-fraunces)] text-3xl sm:text-4xl lg:text-[2.75rem] font-semibold text-[#1A1A2E] tracking-tight">
+            Blog
+          </h1>
+          <p className="mt-3 text-[#7A7A8C] text-lg max-w-2xl">
+            Honest takes on cargo bikes, gear, and the car-lite life. No press releases, no filler.
+          </p>
         </div>
-      </div>
 
-      <div className="container mb-8">
-        <PageRange
-          collection="posts"
-          currentPage={posts.page}
-          limit={12}
-          totalDocs={posts.totalDocs}
-        />
-      </div>
+        <div className="mb-8">
+          <PageRange
+            collection="posts"
+            currentPage={posts.page}
+            limit={12}
+            totalDocs={posts.totalDocs}
+          />
+        </div>
 
-      <CollectionArchive posts={posts.docs} />
+        <CollectionArchive posts={posts.docs} />
 
-      <div className="container">
-        {posts.totalPages > 1 && posts.page && (
-          <Pagination page={posts.page} totalPages={posts.totalPages} />
-        )}
+        <div className="mt-12">
+          {posts.totalPages > 1 && posts.page && (
+            <Pagination page={posts.page} totalPages={posts.totalPages} />
+          )}
+        </div>
       </div>
     </div>
   )
@@ -58,6 +63,7 @@ export default async function Page() {
 
 export function generateMetadata(): Metadata {
   return {
-    title: `Posts | Carryish`,
+    title: 'Blog | Carryish',
+    description: 'Honest takes on cargo bikes, gear, and the car-lite life.',
   }
 }

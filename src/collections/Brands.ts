@@ -37,5 +37,19 @@ export const Brands: CollectionConfig = {
       name: 'description',
       type: 'textarea',
     },
+    {
+      name: 'logoStatus',
+      type: 'select',
+      options: [
+        { label: 'Needs logo', value: 'needs-logo' },
+        { label: 'Has placeholder', value: 'placeholder' },
+        { label: 'Uploaded', value: 'uploaded' },
+      ],
+      defaultValue: 'needs-logo',
+      admin: {
+        position: 'sidebar',
+        description: 'Logo pipeline status',
+      },
+    },
   ],
 }

@@ -74,6 +74,10 @@ export interface Config {
     users: User;
     brands: Brand;
     products: Product;
+    subscribers: Subscriber;
+    'review-sources': ReviewSource;
+    'product-videos': ProductVideo;
+    'user-reviews': UserReview;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -98,6 +102,10 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     brands: BrandsSelect<false> | BrandsSelect<true>;
     products: ProductsSelect<false> | ProductsSelect<true>;
+    subscribers: SubscribersSelect<false> | SubscribersSelect<true>;
+    'review-sources': ReviewSourcesSelect<false> | ReviewSourcesSelect<true>;
+    'product-videos': ProductVideosSelect<false> | ProductVideosSelect<true>;
+    'user-reviews': UserReviewsSelect<false> | UserReviewsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -828,11 +836,212 @@ export interface Product {
     };
     [k: string]: unknown;
   } | null;
-  price?: number | null;
-  weight?: string | null;
-  cargoCapacity?: string | null;
+  testingStatus?: ('tested' | 'specs-only') | null;
+  /**
+   * Tags like "School runs", "Hilly terrain", "2+ kids"
+   */
+  bestFor?:
+    | {
+        tag: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Overall Carryish score (1-10)
+   */
+  overallScore?: number | null;
+  /**
+   * Hill performance
+   */
+  hillScore?: number | null;
+  /**
+   * Cargo capacity rating
+   */
+  cargoScore?: number | null;
+  /**
+   * Real-world range rating
+   */
+  rangeScore?: number | null;
+  /**
+   * Price vs capability
+   */
+  valueScore?: number | null;
+  /**
+   * Family-friendliness
+   */
+  familyScore?: number | null;
+  /**
+   * Bosch, Shimano, Bafang, etc.
+   */
+  motorBrand?: string | null;
+  motorPosition?: ('mid-drive' | 'hub-rear' | 'hub-front') | null;
+  /**
+   * Rated watts
+   */
+  motorNominalWatts?: number | null;
+  /**
+   * Peak watts
+   */
+  motorPeakWatts?: number | null;
+  /**
+   * Torque in Nm
+   */
+  motorTorqueNm?: number | null;
+  pedalAssistLevels?: number | null;
+  throttle?: ('none' | 'thumb' | 'twist' | 'pedal-activated') | null;
+  topSpeedMph?: number | null;
+  bikeClass?: ('class-1' | 'class-2' | 'class-3') | null;
+  /**
+   * Legacy motor description
+   */
   motorType?: string | null;
+  batteryBrand?: string | null;
+  batteryWh?: number | null;
+  batteryVolts?: number | null;
+  batteryRemovable?: boolean | null;
+  dualBatteryCapable?: boolean | null;
+  /**
+   * Total Wh with both batteries
+   */
+  dualBatteryWh?: number | null;
+  /**
+   * Manufacturer range claim (miles)
+   */
+  statedRangeMi?: number | null;
+  /**
+   * Our estimate with load (miles)
+   */
+  estimatedRealRangeMi?: number | null;
+  chargeTimeHours?: number | null;
+  /**
+   * Legacy range description
+   */
   batteryRange?: string | null;
+  weightLbs?: number | null;
+  /**
+   * Total rider + cargo + bike
+   */
+  maxSystemWeightLbs?: number | null;
+  /**
+   * Cargo area only (lbs)
+   */
+  cargoCapacityLbs?: number | null;
+  lengthInches?: number | null;
+  wheelbaseInches?: number | null;
+  standoverHeightInches?: number | null;
+  /**
+   * e.g. 5'1"
+   */
+  riderHeightMin?: string | null;
+  /**
+   * e.g. 6'5"
+   */
+  riderHeightMax?: string | null;
+  foldable?: boolean | null;
+  fitsInElevator?: boolean | null;
+  /**
+   * Legacy weight text
+   */
+  weight?: string | null;
+  /**
+   * Legacy capacity text
+   */
+  cargoCapacity?: string | null;
+  drivetrainType?: ('chain' | 'belt' | 'shaft') | null;
+  /**
+   * Shimano, SRAM, Enviolo, Gates
+   */
+  drivetrainBrand?: string | null;
+  gearType?: ('derailleur' | 'internal-hub' | 'cvp' | 'single-speed') | null;
+  numberOfGears?: number | null;
+  brakeBrand?: string | null;
+  brakeType?: ('hydraulic-disc' | 'mechanical-disc' | 'rim') | null;
+  /**
+   * e.g. 180/203
+   */
+  brakeRotorSizeMm?: string | null;
+  /**
+   * e.g. 20"
+   */
+  frontWheelSize?: string | null;
+  /**
+   * e.g. 20"
+   */
+  rearWheelSize?: string | null;
+  /**
+   * e.g. 2.4
+   */
+  tireWidthInches?: number | null;
+  tireBrand?: string | null;
+  punctureProtection?: boolean | null;
+  suspensionType?: ('rigid' | 'front' | 'full' | 'seatpost') | null;
+  suspensionBrand?: string | null;
+  seatpostType?: ('fixed' | 'suspension' | 'dropper') | null;
+  cargoLayout?: ('longtail' | 'front-box' | 'compact' | 'midtail' | 'trike') | null;
+  maxChildPassengers?: number | null;
+  /**
+   * e.g. Thule Yepp, custom
+   */
+  childSeatCompatibility?: string | null;
+  hasIntegratedChildSeats?: boolean | null;
+  hasSeatbelts?: boolean | null;
+  hasFootboards?: boolean | null;
+  hasWheelGuards?: boolean | null;
+  hasRainCover?: boolean | null;
+  rainCoverAvailable?: boolean | null;
+  frontRack?: boolean | null;
+  rearRack?: boolean | null;
+  /**
+   * MIK, proprietary, standard
+   */
+  rackSystem?: string | null;
+  integratedLights?: boolean | null;
+  turnSignals?: boolean | null;
+  absAvailable?: boolean | null;
+  gpsTracking?: boolean | null;
+  alarm?: boolean | null;
+  lockingKickstand?: boolean | null;
+  /**
+   * What comes in the box
+   */
+  includedAccessories?: string | null;
+  kickstandType?: ('single' | 'double-leg' | 'none') | null;
+  fenders?: boolean | null;
+  /**
+   * e.g. Bosch Kiox 500, LCD
+   */
+  display?: string | null;
+  /**
+   * MSRP in USD
+   */
+  price?: number | null;
+  /**
+   * Common selling price if different
+   */
+  streetPriceUsd?: number | null;
+  /**
+   * US, US + EU, Global
+   */
+  availableIn?: string | null;
+  warrantyYears?: number | null;
+  warrantyDetails?: string | null;
+  salesModel?: ('direct-to-consumer' | 'dealer' | 'both') | null;
+  /**
+   * Price tracking over time
+   */
+  priceHistory?:
+    | {
+        date?: string | null;
+        price?: number | null;
+        source?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  currentBestPrice?: number | null;
+  currentBestPriceSource?: string | null;
+  currentBestPriceUrl?: string | null;
+  onSale?: boolean | null;
+  saleEndDate?: string | null;
   brand?: (number | null) | Brand;
   category?: ('cargo-bike' | 'stroller' | 'trailer' | 'wagon' | 'accessory') | null;
   affiliateUrl: string;
@@ -845,6 +1054,83 @@ export interface Product {
   updatedAt: string;
   createdAt: string;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subscribers".
+ */
+export interface Subscriber {
+  id: number;
+  email: string;
+  name?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "review-sources".
+ */
+export interface ReviewSource {
+  id: number;
+  product: number | Product;
+  sourceName: string;
+  sourceUrl?: string | null;
+  sourceType?: ('editorial' | 'youtube' | 'user-review' | 'reddit') | null;
+  rating?: number | null;
+  pullQuote?: string | null;
+  reviewDate?: string | null;
+  reviewerName?: string | null;
+  sentiment?: ('positive' | 'mixed' | 'negative') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-videos".
+ */
+export interface ProductVideo {
+  id: number;
+  product: number | Product;
+  youtubeId: string;
+  title: string;
+  channelName?: string | null;
+  videoType?: ('review' | 'unboxing' | 'comparison' | 'ride-along' | 'how-to') | null;
+  featured?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-reviews".
+ */
+export interface UserReview {
+  id: number;
+  product: number | Product;
+  authorName: string;
+  rating: number;
+  ownershipDuration?: ('under-1-month' | '1-6-months' | '6-12-months' | '1-year-plus') | null;
+  useCase?: ('school-run' | 'commute' | 'errands' | 'business' | 'recreation') | null;
+  pros?: string | null;
+  cons?: string | null;
+  body?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  verified?: boolean | null;
+  status?: ('pending' | 'approved' | 'rejected') | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1063,6 +1349,22 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'products';
         value: number | Product;
+      } | null)
+    | ({
+        relationTo: 'subscribers';
+        value: number | Subscriber;
+      } | null)
+    | ({
+        relationTo: 'review-sources';
+        value: number | ReviewSource;
+      } | null)
+    | ({
+        relationTo: 'product-videos';
+        value: number | ProductVideo;
+      } | null)
+    | ({
+        relationTo: 'user-reviews';
+        value: number | UserReview;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -1453,11 +1755,107 @@ export interface ProductsSelect<T extends boolean = true> {
   name?: T;
   images?: T;
   carryishTake?: T;
-  price?: T;
+  testingStatus?: T;
+  bestFor?:
+    | T
+    | {
+        tag?: T;
+        id?: T;
+      };
+  overallScore?: T;
+  hillScore?: T;
+  cargoScore?: T;
+  rangeScore?: T;
+  valueScore?: T;
+  familyScore?: T;
+  motorBrand?: T;
+  motorPosition?: T;
+  motorNominalWatts?: T;
+  motorPeakWatts?: T;
+  motorTorqueNm?: T;
+  pedalAssistLevels?: T;
+  throttle?: T;
+  topSpeedMph?: T;
+  bikeClass?: T;
+  motorType?: T;
+  batteryBrand?: T;
+  batteryWh?: T;
+  batteryVolts?: T;
+  batteryRemovable?: T;
+  dualBatteryCapable?: T;
+  dualBatteryWh?: T;
+  statedRangeMi?: T;
+  estimatedRealRangeMi?: T;
+  chargeTimeHours?: T;
+  batteryRange?: T;
+  weightLbs?: T;
+  maxSystemWeightLbs?: T;
+  cargoCapacityLbs?: T;
+  lengthInches?: T;
+  wheelbaseInches?: T;
+  standoverHeightInches?: T;
+  riderHeightMin?: T;
+  riderHeightMax?: T;
+  foldable?: T;
+  fitsInElevator?: T;
   weight?: T;
   cargoCapacity?: T;
-  motorType?: T;
-  batteryRange?: T;
+  drivetrainType?: T;
+  drivetrainBrand?: T;
+  gearType?: T;
+  numberOfGears?: T;
+  brakeBrand?: T;
+  brakeType?: T;
+  brakeRotorSizeMm?: T;
+  frontWheelSize?: T;
+  rearWheelSize?: T;
+  tireWidthInches?: T;
+  tireBrand?: T;
+  punctureProtection?: T;
+  suspensionType?: T;
+  suspensionBrand?: T;
+  seatpostType?: T;
+  cargoLayout?: T;
+  maxChildPassengers?: T;
+  childSeatCompatibility?: T;
+  hasIntegratedChildSeats?: T;
+  hasSeatbelts?: T;
+  hasFootboards?: T;
+  hasWheelGuards?: T;
+  hasRainCover?: T;
+  rainCoverAvailable?: T;
+  frontRack?: T;
+  rearRack?: T;
+  rackSystem?: T;
+  integratedLights?: T;
+  turnSignals?: T;
+  absAvailable?: T;
+  gpsTracking?: T;
+  alarm?: T;
+  lockingKickstand?: T;
+  includedAccessories?: T;
+  kickstandType?: T;
+  fenders?: T;
+  display?: T;
+  price?: T;
+  streetPriceUsd?: T;
+  availableIn?: T;
+  warrantyYears?: T;
+  warrantyDetails?: T;
+  salesModel?: T;
+  priceHistory?:
+    | T
+    | {
+        date?: T;
+        price?: T;
+        source?: T;
+        id?: T;
+      };
+  currentBestPrice?: T;
+  currentBestPriceSource?: T;
+  currentBestPriceUrl?: T;
+  onSale?: T;
+  saleEndDate?: T;
   brand?: T;
   category?: T;
   affiliateUrl?: T;
@@ -1467,6 +1865,65 @@ export interface ProductsSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "subscribers_select".
+ */
+export interface SubscribersSelect<T extends boolean = true> {
+  email?: T;
+  name?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "review-sources_select".
+ */
+export interface ReviewSourcesSelect<T extends boolean = true> {
+  product?: T;
+  sourceName?: T;
+  sourceUrl?: T;
+  sourceType?: T;
+  rating?: T;
+  pullQuote?: T;
+  reviewDate?: T;
+  reviewerName?: T;
+  sentiment?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "product-videos_select".
+ */
+export interface ProductVideosSelect<T extends boolean = true> {
+  product?: T;
+  youtubeId?: T;
+  title?: T;
+  channelName?: T;
+  videoType?: T;
+  featured?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-reviews_select".
+ */
+export interface UserReviewsSelect<T extends boolean = true> {
+  product?: T;
+  authorName?: T;
+  rating?: T;
+  ownershipDuration?: T;
+  useCase?: T;
+  pros?: T;
+  cons?: T;
+  body?: T;
+  verified?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -1,5 +1,6 @@
 import { createLocalReq, getPayload } from 'payload'
-import { seedProducts } from '@/endpoints/seed/product-seed'
+import { seedProductsV3 } from '@/endpoints/seed/product-seed-v3'
+import { seedBlogPosts } from '@/endpoints/seed/blog-seed'
 import config from '@payload-config'
 import { headers } from 'next/headers'
 
@@ -18,7 +19,8 @@ export async function POST(): Promise<Response> {
   try {
     const payloadReq = await createLocalReq({ user }, payload)
 
-    await seedProducts({ payload, req: payloadReq })
+    await seedProductsV3({ payload, req: payloadReq })
+    await seedBlogPosts({ payload, req: payloadReq })
 
     return Response.json({ success: true })
   } catch (e) {

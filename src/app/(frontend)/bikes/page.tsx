@@ -3,19 +3,10 @@ import type { Metadata } from 'next/types'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import React from 'react'
-import Link from 'next/link'
-import { Media } from '@/components/Media'
+import { BikesClient } from './BikesClient'
 
 export const dynamic = 'force-static'
 export const revalidate = 600
-
-const categoryLabels: Record<string, string> = {
-  'cargo-bike': 'Cargo Bike',
-  stroller: 'Stroller',
-  trailer: 'Trailer',
-  wagon: 'Wagon',
-  accessory: 'Accessory',
-}
 
 export default async function BikesPage() {
   const payload = await getPayload({ config: configPromise })
@@ -23,7 +14,7 @@ export default async function BikesPage() {
   const products = await payload.find({
     collection: 'products',
     depth: 1,
-    limit: 12,
+    limit: 50,
     overrideAccess: false,
     sort: '-publishedAt',
     where: {
@@ -33,67 +24,81 @@ export default async function BikesPage() {
     },
   })
 
-  return (
-    <div className="pt-24 pb-24">
-      <div className="container mb-16">
-        <div className="prose dark:prose-invert max-w-none">
-          <h1>Bikes & Gear</h1>
-        </div>
-      </div>
+  const serializedProducts = products.docs.map((product) => {
+    const brand = product.brand && typeof product.brand === 'object' ? product.brand.name : null
 
-      <div className="container">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.docs.map((product) => {
-            const firstImage =
-              product.images && product.images.length > 0 ? product.images[0] : null
-            const brand =
-              product.brand && typeof product.brand === 'object' ? product.brand.name : null
+    // Extract first image as a media resource for the <Media> component
+    let thumbnailImage = null
+    if (product.images && product.images.length > 0) {
+      const firstImage = product.images[0]
+      if (typeof firstImage === 'object' && firstImage !== null) {
+        thumbnailImage = firstImage
+      }
+    }
 
-            return (
-              <Link
-                key={product.id}
-                href={`/bikes/${product.slug}`}
-                className="border border-border rounded-lg overflow-hidden bg-card hover:shadow-lg transition-shadow no-underline"
-              >
-                <div className="relative aspect-[4/3] w-full bg-muted">
-                  {firstImage && typeof firstImage === 'object' && (
-                    <Media resource={firstImage} imgClassName="object-cover w-full h-full" />
-                  )}
-                </div>
-                <div className="p-4">
-                  {product.category && (
-                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {categoryLabels[product.category] || product.category}
-                    </span>
-                  )}
-                  <h3 className="text-lg font-semibold mt-1">{product.name}</h3>
-                  <div className="flex items-center justify-between mt-2">
-                    {brand && (
-                      <span className="text-sm text-muted-foreground">{brand}</span>
-                    )}
-                    {product.price != null && (
-                      <span className="text-sm font-medium">
-                        ${product.price.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+    return {
+      id: product.id,
+      name: product.name,
+      slug: product.slug || '',
+      brand,
+      category: product.category || '',
+      price: product.price ?? 0,
+      thumbnailImage,
+      // Scores
+      overallScore: product.overallScore ?? null,
+      hillScore: product.hillScore ?? null,
+      cargoScore: product.cargoScore ?? null,
+      rangeScore: product.rangeScore ?? null,
+      valueScore: product.valueScore ?? null,
+      familyScore: product.familyScore ?? null,
+      // Motor
+      motorBrand: product.motorBrand || null,
+      motorPosition: product.motorPosition || null,
+      motorTorqueNm: product.motorTorqueNm ?? null,
+      topSpeedMph: product.topSpeedMph ?? null,
+      bikeClass: product.bikeClass || null,
+      throttle: product.throttle || null,
+      // Battery
+      batteryWh: product.batteryWh ?? null,
+      estimatedRealRangeMi: product.estimatedRealRangeMi ?? null,
+      batteryRemovable: product.batteryRemovable ?? null,
+      dualBatteryCapable: product.dualBatteryCapable ?? null,
+      // Dimensions
+      weightLbs: product.weightLbs ?? null,
+      maxSystemWeightLbs: product.maxSystemWeightLbs ?? null,
+      cargoCapacityLbs: product.cargoCapacityLbs ?? null,
+      foldable: product.foldable ?? null,
+      fitsInElevator: product.fitsInElevator ?? null,
+      // Drivetrain
+      drivetrainType: product.drivetrainType || null,
+      gearType: product.gearType || null,
+      brakeType: product.brakeType || null,
+      // Cargo & Family
+      cargoLayout: product.cargoLayout || null,
+      maxChildPassengers: product.maxChildPassengers ?? null,
+      hasSeatbelts: product.hasSeatbelts ?? null,
+      hasRainCover: product.hasRainCover ?? null,
+      rainCoverAvailable: product.rainCoverAvailable ?? null,
+      // Safety
+      integratedLights: product.integratedLights ?? null,
+      gpsTracking: product.gpsTracking ?? null,
+      alarm: product.alarm ?? null,
+      // Comfort
+      suspensionType: product.suspensionType || null,
+      // Tags
+      bestFor: product.bestFor?.map((b) => b.tag) || [],
+      testingStatus: product.testingStatus || null,
+    }
+  })
 
-        {products.docs.length === 0 && (
-          <p className="text-muted-foreground">No products found.</p>
-        )}
-      </div>
-    </div>
-  )
+  const brands = [...new Set(serializedProducts.map((p) => p.brand).filter(Boolean))] as string[]
+
+  return <BikesClient products={serializedProducts} brands={brands} />
 }
 
 export function generateMetadata(): Metadata {
   return {
     title: 'Bikes & Gear | Carryish',
-    description: 'Browse cargo bikes, strollers, trailers, wagons, and accessories.',
+    description: 'Browse cargo bikes, strollers, trailers, wagons, and accessories. Honest reviews with real tradeoffs.',
   }
 }
