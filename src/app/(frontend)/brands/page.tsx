@@ -50,7 +50,7 @@ export default async function BrandsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
           {brands.docs.map((brand) => {
             const count = productCounts[brand.id] || 0
-            const hasRealLogo = brand.logo && typeof brand.logo === 'object' && brand.logoStatus === 'uploaded'
+            const hasLogo = brand.logo && typeof brand.logo === 'object' && (brand.logo as any).url
 
             return (
               <Link
@@ -59,7 +59,7 @@ export default async function BrandsPage() {
                 className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300 no-underline"
               >
                 {/* Logo / visual area */}
-                {hasRealLogo ? (
+                {hasLogo ? (
                   <div className="relative aspect-[2.2/1] w-full bg-[#F8F7F5]">
                     <Media
                       resource={brand.logo as any}
@@ -86,7 +86,7 @@ export default async function BrandsPage() {
                     <h2 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors">
                       {brand.name}
                     </h2>
-                    {hasRealLogo && count > 0 && (
+                    {hasLogo && count > 0 && (
                       <span className="text-[11px] font-medium text-[#7A7A8C] bg-[#1A1A2E]/[0.04] px-2.5 py-1 rounded-full shrink-0">
                         {count} {count === 1 ? 'bike' : 'bikes'}
                       </span>

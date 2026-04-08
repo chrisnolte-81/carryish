@@ -27,12 +27,17 @@ export default async function BikesPage() {
   const serializedProducts = products.docs.map((product) => {
     const brand = product.brand && typeof product.brand === 'object' ? product.brand.name : null
 
-    // Extract first image as a media resource for the <Media> component
+    // Extract first real image (skip auto-generated info cards ending in -card.png)
     let thumbnailImage = null
     if (product.images && product.images.length > 0) {
-      const firstImage = product.images[0]
-      if (typeof firstImage === 'object' && firstImage !== null) {
-        thumbnailImage = firstImage
+      for (const img of product.images) {
+        if (typeof img === 'object' && img !== null) {
+          const filename = img.filename || ''
+          if (!filename.endsWith('-card.png')) {
+            thumbnailImage = img
+            break
+          }
+        }
       }
     }
 
