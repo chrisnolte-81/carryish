@@ -22,11 +22,14 @@
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
     "seed:images": "node --import tsx/esm scripts/image-pipeline.ts",
     "seed:images:brands": "node --import tsx/esm scripts/image-pipeline.ts --brands",
-    "seed:images:products": "node --import tsx/esm scripts/image-pipeline.ts --products"
+    "seed:images:products": "node --import tsx/esm scripts/image-pipeline.ts --products",
+    "validate:images": "node --import tsx/esm scripts/validate-images.ts",
+    "validate:images:fix": "node --import tsx/esm scripts/validate-images.ts --fix"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.68",
     "@ai-sdk/react": "^3.0.154",
+    "@anthropic-ai/sdk": "^0.86.0",
     "@payloadcms/admin-bar": "3.81.0",
     "@payloadcms/db-postgres": "3.81.0",
     "@payloadcms/live-preview-react": "3.81.0",
