@@ -1,15 +1,17 @@
 /**
  * Standardize product images: consistent white background, 4:3 aspect ratio,
- * bikes all appear the same size in frame.
+ * bikes all appear the same size in frame, with a soft ground shadow.
  *
  * Process:
- * 1. Download each product's primary image
+ * 1. Download each product's source image (skips previously standardized ones)
  * 2. Trim away background (white or dark)
  * 3. Resize trimmed bike to fit a consistent content area
- * 4. Place centered on a white 1600x1200 canvas (4:3)
+ * 4. Place centered on a white 1600x1200 canvas with ground shadow
  * 5. Upload as new primary image
  *
- * Usage: PAYLOAD_URL=https://carryish.ai node --import tsx/esm scripts/standardize-images.ts
+ * Usage:
+ *   PAYLOAD_URL=https://carryish.ai node --import tsx/esm scripts/standardize-images.ts
+ *   PAYLOAD_URL=https://carryish.ai node --import tsx/esm scripts/standardize-images.ts --product=gazelle-cabby
  */
 
 import 'dotenv/config'
@@ -24,13 +26,16 @@ const BASE_URL = process.env.PAYLOAD_URL || 'http://localhost:3000'
 const EMAIL = process.env.PAYLOAD_EMAIL || 'demo-author@example.com'
 const PASSWORD = process.env.PAYLOAD_PASSWORD || 'password'
 
+const args = process.argv.slice(2)
+const FLAG_PRODUCT_SLUG = args.find((a) => a.startsWith('--product='))?.split('=')[1]
+
 // Canvas dimensions (4:3)
 const CANVAS_W = 1600
 const CANVAS_H = 1200
-// The bike should fill this portion of the canvas (with padding around it)
-const CONTENT_W = Math.round(CANVAS_W * 0.82) // ~1312px for the bike
-const CONTENT_H = Math.round(CANVAS_H * 0.78) // ~936px for the bike
-const BG_COLOR = { r: 255, g: 255, b: 255, alpha: 1 } // white
+// The bike should fill this portion of the canvas
+const CONTENT_W = Math.round(CANVAS_W * 0.80) // 1280px
+const CONTENT_H = Math.round(CANVAS_H * 0.72) // 864px — leave more room at bottom for shadow
+const BG_COLOR = { r: 255, g: 255, b: 255, alpha: 1 }
 
 // ─── Helpers ───
 
@@ -98,55 +103,82 @@ async function patchProduct(id: number, updates: Record<string, unknown>, token:
   if (!res.ok) warn(`Patch failed for product ${id}`)
 }
 
+// ─── Shadow Generation ───
+
+async function createGroundShadow(bikeWidth: number): Promise<Buffer> {
+  // Create a soft elliptical shadow sized relative to the bike
+  const shadowW = Math.round(bikeWidth * 0.75)
+  const shadowH = 50
+  const rx = Math.round(shadowW / 2)
+  const ry = 12
+
+  const svg = Buffer.from(
+    `<svg width="${shadowW}" height="${shadowH}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="10" />
+        </filter>
+      </defs>
+      <ellipse cx="${shadowW / 2}" cy="${shadowH / 2}" rx="${rx}" ry="${ry}"
+        fill="rgba(0,0,0,0.10)" filter="url(#blur)" />
+    </svg>`,
+  )
+
+  return await sharp(svg).png().toBuffer()
+}
+
 // ─── Image Standardization ───
 
 async function standardizeImage(inputPath: string, outputPath: string): Promise<void> {
-  // Step 1: Read the image
-  const input = sharp(inputPath)
-  const meta = await input.metadata()
+  const meta = await sharp(inputPath).metadata()
   log(`  Original: ${meta.width}x${meta.height}`)
 
-  // Step 2: Trim background (auto-detects white or dark backgrounds)
-  // Use a threshold to handle slight color variations
-  let trimmed: sharp.Sharp
+  // Step 1: Trim background
+  let trimmedBuf: Buffer
   try {
-    trimmed = sharp(inputPath).trim({ threshold: 30 })
-    const trimmedBuf = await trimmed.toBuffer()
+    trimmedBuf = await sharp(inputPath).trim({ threshold: 30 }).toBuffer()
     const trimmedMeta = await sharp(trimmedBuf).metadata()
 
-    // Sanity check: if trim removed too much (< 20% of original), skip trimming
     const origArea = (meta.width || 1) * (meta.height || 1)
     const trimArea = (trimmedMeta.width || 1) * (trimmedMeta.height || 1)
 
     if (trimArea / origArea < 0.15) {
-      warn(`  Trim removed too much (${Math.round(trimArea/origArea*100)}%), using original`)
-      trimmed = sharp(inputPath)
+      warn(`  Trim removed too much (${Math.round((trimArea / origArea) * 100)}%), using original`)
+      trimmedBuf = await sharp(inputPath).toBuffer()
     } else {
       log(`  Trimmed to: ${trimmedMeta.width}x${trimmedMeta.height}`)
-      // Use the trimmed buffer for further processing
-      trimmed = sharp(trimmedBuf)
     }
   } catch {
     warn(`  Trim failed, using original`)
-    trimmed = sharp(inputPath)
+    trimmedBuf = await sharp(inputPath).toBuffer()
   }
 
-  // Step 3: Resize the trimmed bike to fit within the content area
-  const resized = await trimmed
+  // Step 2: Resize the trimmed bike to fit within the content area
+  const resized = await sharp(trimmedBuf)
     .resize(CONTENT_W, CONTENT_H, {
       fit: 'inside',
-      withoutEnlargement: false, // allow upscaling small images to fill the space
+      withoutEnlargement: false,
     })
     .toBuffer()
 
   const resizedMeta = await sharp(resized).metadata()
-  log(`  Resized bike: ${resizedMeta.width}x${resizedMeta.height}`)
+  const bikeW = resizedMeta.width || 0
+  const bikeH = resizedMeta.height || 0
+  log(`  Resized bike: ${bikeW}x${bikeH}`)
 
-  // Step 4: Create white canvas and composite the bike centered
-  // Calculate position to center the bike on the canvas
-  const left = Math.round((CANVAS_W - (resizedMeta.width || 0)) / 2)
-  const top = Math.round((CANVAS_H - (resizedMeta.height || 0)) / 2)
+  // Step 3: Position bike — center horizontally, slightly above center vertically
+  // to leave room for the shadow below
+  const bikeLeft = Math.round((CANVAS_W - bikeW) / 2)
+  const bikeTop = Math.round((CANVAS_H - bikeH) / 2) - 20 // nudge up slightly
 
+  // Step 4: Create ground shadow
+  const shadowBuf = await createGroundShadow(bikeW)
+  const shadowMeta = await sharp(shadowBuf).metadata()
+  const shadowLeft = Math.round((CANVAS_W - (shadowMeta.width || 0)) / 2)
+  // Place shadow right at the bottom of the bike
+  const shadowTop = bikeTop + bikeH - 12
+
+  // Step 5: Composite: canvas → shadow → bike
   await sharp({
     create: {
       width: CANVAS_W,
@@ -157,16 +189,43 @@ async function standardizeImage(inputPath: string, outputPath: string): Promise<
   })
     .composite([
       {
+        input: shadowBuf,
+        left: shadowLeft,
+        top: shadowTop,
+      },
+      {
         input: resized,
-        left,
-        top,
+        left: bikeLeft,
+        top: bikeTop,
       },
     ])
-    .webp({ quality: 88 }) // slightly higher quality for the final standardized image
+    .webp({ quality: 88 })
     .toFile(outputPath)
 
-  const finalMeta = await sharp(outputPath).metadata()
-  log(`  Final: ${finalMeta.width}x${finalMeta.height} (${Math.round(fs.statSync(outputPath).size / 1024)}KB)`)
+  const finalSize = Math.round(fs.statSync(outputPath).size / 1024)
+  log(`  Final: ${CANVAS_W}x${CANVAS_H} (${finalSize}KB) with shadow`)
+}
+
+// ─── Find Source Image ───
+
+function findSourceImage(images: any[]): any | null {
+  // Skip standardized images and info-card fallbacks to find the original source
+  const candidates = images.filter((img: any) => {
+    if (typeof img !== 'object' || !img?.url) return false
+    const fn = img.filename || ''
+    if (fn.endsWith('-card.png')) return false
+    if (fn.includes('standardized')) return false
+    return true
+  })
+
+  if (candidates.length === 0) return null
+
+  // Prefer the highest resolution candidate
+  return candidates.sort((a: any, b: any) => {
+    const aArea = (a.width || 0) * (a.height || 0)
+    const bArea = (b.width || 0) * (b.height || 0)
+    return bArea - aArea
+  })[0]
 }
 
 // ─── Main ───
@@ -179,10 +238,15 @@ async function main() {
   const token = await login()
   log('Logged in\n')
 
-  // Fetch all products
-  const res = await fetch(`${BASE_URL}/api/products?limit=100&depth=1&where[_status][equals]=published`)
+  let url = `${BASE_URL}/api/products?limit=100&depth=1&where[_status][equals]=published`
+  if (FLAG_PRODUCT_SLUG) {
+    url += `&where[slug][equals]=${FLAG_PRODUCT_SLUG}`
+  }
+  const res = await fetch(url)
   const data = await res.json()
   const products = data.docs as any[]
+
+  if (FLAG_PRODUCT_SLUG) log(`Processing single product: ${FLAG_PRODUCT_SLUG}\n`)
 
   let updated = 0
   let failed = 0
@@ -192,30 +256,26 @@ async function main() {
     const label = `${brandName} ${product.name}`
     log(`── ${label} ──`)
 
-    // Find the first real image (skip -card.png)
-    const images = (product.images || []).filter(
-      (img: any) => typeof img === 'object' && img?.url && !img.filename?.endsWith('-card.png'),
-    )
-
-    if (images.length === 0) {
-      warn(`  No images, skipping`)
+    const sourceImage = findSourceImage(product.images || [])
+    if (!sourceImage) {
+      warn(`  No source image found, skipping`)
       failed++
       continue
     }
 
-    const primaryImage = images[0]
-    const inputPath = path.join(TMP_DIR, `${product.slug}-input.${primaryImage.filename?.split('.').pop() || 'jpg'}`)
+    log(`  Source: ${sourceImage.filename} (${sourceImage.width}x${sourceImage.height})`)
+
+    const ext = sourceImage.filename?.split('.').pop() || 'jpg'
+    const inputPath = path.join(TMP_DIR, `${product.slug}-input.${ext}`)
     const outputPath = path.join(TMP_DIR, `${product.slug}-standardized.webp`)
 
-    // Download
-    const ok = await downloadImage(primaryImage.url, inputPath)
+    const ok = await downloadImage(sourceImage.url, inputPath)
     if (!ok) {
       warn(`  Download failed`)
       failed++
       continue
     }
 
-    // Standardize
     try {
       await standardizeImage(inputPath, outputPath)
     } catch (err) {
@@ -224,16 +284,24 @@ async function main() {
       continue
     }
 
-    // Upload
     try {
       const mediaId = await uploadMedia(outputPath, `${label} — standardized`, token)
       log(`  Uploaded (media ID: ${mediaId})`)
 
-      // Keep the original images but put the standardized one first
-      const existingIds = images.map((img: any) => img.id)
+      // Keep original source images, drop old standardized ones
+      const keepIds = (product.images || [])
+        .filter(
+          (img: any) =>
+            typeof img === 'object' &&
+            img?.id &&
+            !img.filename?.includes('standardized') &&
+            !img.filename?.endsWith('-card.png'),
+        )
+        .map((img: any) => img.id)
+
       await patchProduct(
         product.id,
-        { images: [mediaId, ...existingIds], _status: 'published' },
+        { images: [mediaId, ...keepIds], _status: 'published' },
         token,
       )
       log(`  ✓ Product updated\n`)
@@ -243,7 +311,6 @@ async function main() {
       failed++
     }
 
-    // Clean up temp files
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath)
     if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath)
   }
