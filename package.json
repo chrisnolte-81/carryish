@@ -30,6 +30,7 @@
     "@ai-sdk/anthropic": "^3.0.68",
     "@ai-sdk/react": "^3.0.154",
     "@anthropic-ai/sdk": "^0.86.0",
+    "@mendable/firecrawl-js": "^4.18.1",
     "@payloadcms/admin-bar": "3.81.0",
     "@payloadcms/db-postgres": "3.81.0",
     "@payloadcms/live-preview-react": "3.81.0",
