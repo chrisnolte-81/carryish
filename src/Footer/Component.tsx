@@ -29,6 +29,9 @@ export async function Footer() {
               <Link href="/bikes" className="text-sm text-[#FAFAF8]/50 hover:text-[#FAFAF8] transition-colors no-underline">
                 Bikes
               </Link>
+              <Link href="/posts" className="text-sm text-[#FAFAF8]/50 hover:text-[#FAFAF8] transition-colors no-underline">
+                Blog
+              </Link>
               <Link href="/about" className="text-sm text-[#FAFAF8]/50 hover:text-[#FAFAF8] transition-colors no-underline">
                 About
               </Link>
