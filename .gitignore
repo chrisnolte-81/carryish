@@ -17,6 +17,9 @@ public/sitemap*.xml
 # Temp image generation
 .tmp-images/
 
+# Enrichment pipeline output
+data/
+
 # Playwright
 node_modules/
 /test-results/
