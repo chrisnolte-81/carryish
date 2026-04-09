@@ -22,6 +22,7 @@ const PASSWORD = process.env.PAYLOAD_PASSWORD || 'password'
 const FLAG_DRY_RUN = process.argv.includes('--dry-run')
 
 function log(msg: string) { console.log(`[enrich-comparisons] ${msg}`) }
+function warn(msg: string) { console.warn(`[enrich-comparisons] ⚠ ${msg}`) }
 
 async function login(): Promise<string> {
   const res = await fetch(`${BASE_URL}/api/users/login`, {
@@ -103,26 +104,60 @@ ${JSON.stringify(catalog, null, 2)}
 
 Return ONLY valid JSON. No markdown, no explanation.`
 
-  log('Sending catalog to Claude API...')
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 8000,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  // Split catalog into batches to avoid output truncation
+  const BATCH_SIZE = 10
+  const comparisons: Record<string, any> = {}
 
-  const text = response.content
-    .filter((c): c is Anthropic.TextBlock => c.type === 'text')
-    .map((c) => c.text)
-    .join('')
+  for (let i = 0; i < catalog.length; i += BATCH_SIZE) {
+    const batch = catalog.slice(i, i + BATCH_SIZE)
+    const batchSlugs = batch.map((p) => p.slug).join(', ')
+    log(`Batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(catalog.length / BATCH_SIZE)}: ${batch.length} products`)
 
-  let comparisons: any
-  try {
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-    comparisons = JSON.parse(jsonMatch ? jsonMatch[1] : text)
-  } catch {
-    log('Failed to parse JSON response, saving raw output')
-    fs.writeFileSync(path.join(DATA_DIR, 'comparisons.raw.txt'), text)
-    process.exit(1)
+    const batchPrompt = `${prompt}\n\nIMPORTANT: Only generate comparisons for these specific slugs: ${batchSlugs}\nYou may reference any slug from the full catalog in competitor fields.`
+
+    // Retry with exponential backoff for rate limits
+    let retries = 0
+    while (retries < 3) {
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 8192,
+          messages: [{ role: 'user', content: batchPrompt }],
+        })
+
+        const text = response.content
+          .filter((c): c is Anthropic.TextBlock => c.type === 'text')
+          .map((c) => c.text)
+          .join('')
+
+        try {
+          const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+          const batchResult = JSON.parse(jsonMatch ? jsonMatch[1] : text)
+          Object.assign(comparisons, batchResult)
+          log(`  Got comparisons for ${Object.keys(batchResult).length} products`)
+        } catch {
+          warn(`  Failed to parse batch response, saving raw`)
+          fs.writeFileSync(path.join(DATA_DIR, `comparisons-batch-${i}.raw.txt`), text)
+        }
+        break // success
+      } catch (err: any) {
+        if (err?.error?.type === 'rate_limit_error' && retries < 2) {
+          const wait = (retries + 1) * 30
+          log(`  Rate limited, waiting ${wait}s before retry...`)
+          await new Promise((r) => setTimeout(r, wait * 1000))
+          retries++
+        } else {
+          throw err
+        }
+      }
+    }
+
+    // Save partial progress after each batch
+    if (Object.keys(comparisons).length > 0) {
+      fs.writeFileSync(path.join(DATA_DIR, 'comparisons.json'), JSON.stringify(comparisons, null, 2))
+    }
+
+    await new Promise((r) => setTimeout(r, 2000))
   }
 
   // Validate: ensure all referenced slugs exist

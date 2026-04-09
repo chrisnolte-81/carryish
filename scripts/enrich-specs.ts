@@ -1,5 +1,6 @@
 /**
- * Extract detailed product specs from manufacturer pages using Firecrawl extract.
+ * Extract detailed product specs from manufacturer pages.
+ * Uses Firecrawl to scrape markdown, then Claude API to extract structured specs.
  *
  * Usage:
  *   PAYLOAD_URL=https://carryish.ai node --import tsx/esm scripts/enrich-specs.ts
@@ -8,6 +9,7 @@
  */
 
 import 'dotenv/config'
+import Anthropic from '@anthropic-ai/sdk'
 import Firecrawl from '@mendable/firecrawl-js'
 import fs from 'fs'
 import path from 'path'
@@ -23,6 +25,7 @@ const FIRECRAWL_KEY = process.env.FIRECRAWL_API_KEY || ''
 const args = process.argv.slice(2)
 const FLAG_DRY_RUN = args.includes('--dry-run')
 const FLAG_PRODUCT = args.find((a) => a.startsWith('--product='))?.split('=')[1]
+const FLAG_FORCE = args.includes('--force')
 
 // ─── URL overrides for products with bad affiliate URLs ───
 const URL_OVERRIDES: Record<string, string> = {
@@ -51,104 +54,82 @@ const URL_OVERRIDES: Record<string, string> = {
   'addmotor-m-330': 'https://www.addmotor.com/products/m-330-electric-cargo-bike',
 }
 
-// Firecrawl extract schema for bike specs
-const EXTRACT_SCHEMA = {
-  type: 'object' as const,
-  properties: {
-    motor: {
-      type: 'object' as const,
-      properties: {
-        brand: { type: 'string' as const },
-        model: { type: 'string' as const },
-        type: { type: 'string' as const, enum: ['mid-drive', 'hub-rear', 'hub-front', 'pedal-by-wire'] },
-        watts_nominal: { type: 'number' as const },
-        watts_peak: { type: 'number' as const },
-        torque_nm: { type: 'number' as const },
-        pedal_assist_levels: { type: 'number' as const },
-      },
-    },
-    battery: {
-      type: 'object' as const,
-      properties: {
-        brand: { type: 'string' as const },
-        wh: { type: 'number' as const },
-        voltage: { type: 'number' as const },
-        removable: { type: 'boolean' as const },
-        dual_option: { type: 'boolean' as const },
-        dual_wh: { type: 'number' as const },
-        charge_time_hours: { type: 'number' as const },
-      },
-    },
-    speed_class: { type: 'string' as const, enum: ['class-1', 'class-2', 'class-3'] },
-    throttle: { type: 'string' as const, enum: ['none', 'thumb', 'twist', 'pedal-activated'] },
-    top_speed_mph: { type: 'number' as const },
-    range_stated_miles: { type: 'number' as const },
-    drivetrain: {
-      type: 'object' as const,
-      properties: {
-        type: { type: 'string' as const, enum: ['chain', 'belt', 'shaft'] },
-        brand: { type: 'string' as const },
-        gears: { type: 'number' as const },
-        gear_type: { type: 'string' as const, enum: ['derailleur', 'internal-hub', 'cvp', 'single-speed'] },
-      },
-    },
-    brakes: {
-      type: 'object' as const,
-      properties: {
-        type: { type: 'string' as const, enum: ['hydraulic-disc', 'mechanical-disc', 'rim'] },
-        brand: { type: 'string' as const },
-        abs: { type: 'boolean' as const },
-      },
-    },
-    frame: {
-      type: 'object' as const,
-      properties: {
-        material: { type: 'string' as const },
-        suspension_front: { type: 'string' as const },
-        suspension_rear: { type: 'string' as const },
-      },
-    },
-    wheels: {
-      type: 'object' as const,
-      properties: {
-        front_size: { type: 'string' as const },
-        rear_size: { type: 'string' as const },
-        tire_brand: { type: 'string' as const },
-        tire_width: { type: 'number' as const },
-        puncture_protection: { type: 'boolean' as const },
-      },
-    },
-    dimensions: {
-      type: 'object' as const,
-      properties: {
-        weight_lbs: { type: 'number' as const },
-        max_capacity_lbs: { type: 'number' as const },
-        cargo_capacity_lbs: { type: 'number' as const },
-        length_inches: { type: 'number' as const },
-        wheelbase_inches: { type: 'number' as const },
-        standover_inches: { type: 'number' as const },
-        rider_height_min: { type: 'string' as const },
-        rider_height_max: { type: 'string' as const },
-        foldable: { type: 'boolean' as const },
-      },
-    },
-    features: {
-      type: 'object' as const,
-      properties: {
-        lights: { type: 'boolean' as const },
-        fenders: { type: 'boolean' as const },
-        kickstand: { type: 'string' as const },
-        display: { type: 'string' as const },
-        gps: { type: 'boolean' as const },
-        lock: { type: 'boolean' as const },
-      },
-    },
-    passenger_capacity: { type: 'number' as const },
-    price_usd: { type: 'number' as const },
-    price_usd_max: { type: 'number' as const },
-    warranty_years: { type: 'number' as const },
+const EXTRACTION_PROMPT = `Extract structured specifications from this product page content. Return a JSON object with ONLY the fields you can confidently extract from the text. If a value isn't mentioned, omit that field entirely — do NOT guess.
+
+Expected JSON structure:
+{
+  "motor": {
+    "brand": "e.g. Bosch, Shimano, Bafang",
+    "model": "e.g. Cargo Line, EP8",
+    "type": "mid-drive | hub-rear | hub-front | pedal-by-wire",
+    "watts_nominal": 250,
+    "watts_peak": 750,
+    "torque_nm": 85,
+    "pedal_assist_levels": 4
   },
+  "battery": {
+    "brand": "e.g. Bosch, Samsung",
+    "wh": 545,
+    "voltage": 36,
+    "removable": true,
+    "dual_option": true,
+    "dual_wh": 1090,
+    "charge_time_hours": 4.5
+  },
+  "speed_class": "class-1 | class-2 | class-3",
+  "throttle": "none | thumb | twist | pedal-activated",
+  "top_speed_mph": 20,
+  "range_stated_miles": 50,
+  "drivetrain": {
+    "type": "chain | belt | shaft",
+    "brand": "e.g. Shimano, Enviolo, SRAM",
+    "gears": 10,
+    "gear_type": "derailleur | internal-hub | cvp | single-speed"
+  },
+  "brakes": {
+    "type": "hydraulic-disc | mechanical-disc | rim",
+    "brand": "e.g. Shimano, Magura, Tektro",
+    "abs": false
+  },
+  "frame": {
+    "material": "e.g. 6061 aluminum, steel, chromoly",
+    "suspension_front": "e.g. none, RST, RockShox",
+    "suspension_rear": "e.g. none, spring"
+  },
+  "wheels": {
+    "front_size": "e.g. 20in, 24in, 26in",
+    "rear_size": "e.g. 20in, 24in",
+    "tire_brand": "e.g. Schwalbe, Kenda",
+    "tire_width": 2.4,
+    "puncture_protection": true
+  },
+  "dimensions": {
+    "weight_lbs": 75,
+    "max_capacity_lbs": 463,
+    "cargo_capacity_lbs": 200,
+    "length_inches": 73,
+    "wheelbase_inches": 50,
+    "standover_inches": 24,
+    "rider_height_min": "4'11\"",
+    "rider_height_max": "6'5\"",
+    "foldable": true
+  },
+  "features": {
+    "lights": true,
+    "fenders": true,
+    "kickstand": "e.g. dual-leg, center, none",
+    "display": "e.g. Bosch Kiox 300, LCD",
+    "gps": false,
+    "lock": false
+  },
+  "passenger_capacity": 2,
+  "price_usd": 5799,
+  "price_usd_max": 9499,
+  "warranty_years": 5
 }
+
+Convert all weights to lbs and distances to miles/inches if given in metric.
+Return ONLY valid JSON. No markdown, no explanation.`
 
 function log(msg: string) { console.log(`[enrich-specs] ${msg}`) }
 function warn(msg: string) { console.warn(`[enrich-specs] ⚠ ${msg}`) }
@@ -163,14 +144,55 @@ async function login(): Promise<string> {
   return (await res.json()).token
 }
 
+/**
+ * Extract spec-relevant sections from page markdown.
+ * Product pages often have 50K+ of cookie banners, nav, footer — we only want specs.
+ */
+function extractSpecSections(markdown: string): string {
+  const lines = markdown.split('\n')
+  const specKeywords = /spec|motor|battery|weight|torque|watt|range|class|speed|brakes?|drivetrain|gears?|wheel|tire|frame|capacity|dimension|height|foldable|display|suspension|charge|voltage|amp/i
+  const boilerKeywords = /cookie|privacy|gdpr|analytics|tracking|consent|wishlist|newsletter|subscribe|footer|copyright|terms of service/i
+
+  // Find lines that look like spec data and their surrounding context
+  const specLines: number[] = []
+  for (let i = 0; i < lines.length; i++) {
+    if (specKeywords.test(lines[i]) && !boilerKeywords.test(lines[i])) {
+      specLines.push(i)
+    }
+  }
+
+  if (specLines.length === 0) {
+    // Fallback: use the last 12K chars (specs are usually at the bottom)
+    return markdown.slice(-12000)
+  }
+
+  // Build content from spec-rich regions with context
+  const sections: string[] = []
+  let lastEnd = -1
+  for (const lineNum of specLines) {
+    const start = Math.max(lineNum - 2, lastEnd + 1)
+    const end = Math.min(lineNum + 5, lines.length - 1)
+    if (start <= end) {
+      sections.push(lines.slice(start, end + 1).join('\n'))
+      lastEnd = end
+    }
+  }
+
+  const result = sections.join('\n---\n')
+  // Cap at ~15K chars for Claude
+  return result.length > 15000 ? result.slice(0, 15000) : result
+}
+
 async function main() {
   log('=== Product Spec Extraction ===')
-  log(`Mode: ${FLAG_DRY_RUN ? 'DRY RUN' : 'EXTRACT + SAVE'}`)
+  log(`Mode: ${FLAG_DRY_RUN ? 'DRY RUN' : 'SCRAPE + EXTRACT'}`)
 
   if (!FIRECRAWL_KEY) throw new Error('FIRECRAWL_API_KEY not set')
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set')
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true })
 
   const firecrawl = new Firecrawl({ apiKey: FIRECRAWL_KEY })
+  const anthropic = new Anthropic()
 
   const token = await login()
   log('Logged in')
@@ -192,9 +214,9 @@ async function main() {
     const slug = product.slug
     if (FLAG_PRODUCT && slug !== FLAG_PRODUCT) continue
 
-    // Skip if already extracted
+    // Skip if already extracted (unless --force)
     const outputPath = path.join(DATA_DIR, `${slug}.json`)
-    if (fs.existsSync(outputPath)) {
+    if (fs.existsSync(outputPath) && !FLAG_FORCE) {
       skipped++
       continue
     }
@@ -217,35 +239,83 @@ async function main() {
     }
 
     try {
-      log(`  Extracting from: ${url}`)
-      const result = await firecrawl.scrapeUrl(url, {
-        formats: ['extract'],
-        extract: {
-          schema: EXTRACT_SCHEMA,
-        },
+      // Step 1: Scrape page with Firecrawl
+      log(`  Scraping: ${url}`)
+      const scrapeResult = await firecrawl.scrape(url, {
+        formats: ['markdown'],
+        waitFor: 3000,
+        timeout: 30000,
       })
 
-      if (result.success && result.extract) {
-        fs.writeFileSync(outputPath, JSON.stringify(result.extract, null, 2))
-        log(`  Saved to ${outputPath}`)
-        extracted++
-
-        // Track coverage
-        const fields = countFields(result.extract)
-        for (const [field, has] of Object.entries(fields)) {
-          if (!coverage[field]) coverage[field] = 0
-          if (has) coverage[field]++
-        }
-      } else {
-        warn(`  Extract returned no data`)
+      const markdown = scrapeResult.markdown || ''
+      if (!markdown || markdown.length < 100) {
+        warn(`  Page content too short (${markdown.length} chars)`)
         failed++
+        continue
+      }
+      log(`  Got ${markdown.length} chars of content`)
+
+      // Step 2: Extract spec-relevant sections from the markdown
+      // Many product pages have long cookie/boilerplate at the top — find spec content
+      const specContent = extractSpecSections(markdown)
+
+      // Call Claude with rate limit retry
+      let text = ''
+      let retries = 0
+      while (retries < 3) {
+        try {
+          const response = await anthropic.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 2000,
+            messages: [{
+              role: 'user',
+              content: `Product: ${label}\nURL: ${url}\n\nPAGE CONTENT:\n${specContent}\n\n${EXTRACTION_PROMPT}`,
+            }],
+          })
+          text = response.content
+            .filter((c): c is Anthropic.TextBlock => c.type === 'text')
+            .map((c) => c.text)
+            .join('')
+          break
+        } catch (apiErr: any) {
+          if (apiErr?.error?.type === 'rate_limit_error' && retries < 2) {
+            const wait = (retries + 1) * 30
+            log(`  Rate limited, waiting ${wait}s...`)
+            await new Promise((r) => setTimeout(r, wait * 1000))
+            retries++
+          } else {
+            throw apiErr
+          }
+        }
+      }
+
+      let specs: any
+      try {
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+        specs = JSON.parse(jsonMatch ? jsonMatch[1] : text)
+      } catch {
+        warn(`  Failed to parse Claude response`)
+        fs.writeFileSync(outputPath + '.raw', text)
+        failed++
+        continue
+      }
+
+      fs.writeFileSync(outputPath, JSON.stringify(specs, null, 2))
+      log(`  Extracted ${Object.keys(specs).length} top-level fields`)
+      extracted++
+
+      // Track coverage
+      const fields = countFields(specs)
+      for (const [field, has] of Object.entries(fields)) {
+        if (!coverage[field]) coverage[field] = 0
+        if (has) coverage[field]++
       }
     } catch (err: any) {
-      warn(`  Firecrawl error: ${err.message || err}`)
+      warn(`  Error: ${err.message || err}`)
       failed++
     }
 
-    // Rate limit
+    // Rate limit (Firecrawl + Claude)
     await new Promise((r) => setTimeout(r, 1500))
   }
 

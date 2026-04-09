@@ -51,7 +51,7 @@ BANNED structures: "Not only X, but also Y", starting 3+ sentences the same way,
 
 Respond ONLY with valid JSON. No markdown code blocks, no explanation.`
 
-const CONTENT_PROMPT = `Generate editorial content for this cargo bike. Return a JSON object with these exact keys:
+const CONTENT_PROMPT_TEMPLATE = `Generate editorial content for this cargo bike. Return a JSON object with these exact keys:
 
 1. "tagline" — punchy one-liner, max 80 chars. Examples: "The do-everything longtail that folds to fit in a closet", "Dutch family hauling at half the European price"
 
@@ -85,7 +85,7 @@ Here's the product data:
 BRAND: {brand}
 MODEL: {model}
 TYPE: {type} ({layout})
-PRICE: ${price_from}{price_range}
+PRICE: {price_display}
 MOTOR: {motor_info}
 BATTERY: {battery_info}
 WEIGHT: {weight_info}
@@ -146,13 +146,12 @@ function buildPrompt(product: any, specData: any): string {
 
   const bestForTags = product.bestFor?.map((b: any) => b.tag).join(', ') || ''
 
-  let prompt = CONTENT_PROMPT
+  let prompt = CONTENT_PROMPT_TEMPLATE
     .replace('{brand}', brand)
     .replace('{model}', model)
     .replace('{type}', product.category === 'cargo-bike' ? 'Cargo Bike' : product.category || 'Cargo Bike')
     .replace('{layout}', layout)
-    .replace('{price_from}', price.toLocaleString())
-    .replace('{price_range}', '')
+    .replace('{price_display}', price > 0 ? `$${price.toLocaleString()}` : 'TBD')
     .replace('{motor_info}', motorInfo)
     .replace('{battery_info}', batteryInfo)
     .replace('{weight_info}', weightInfo)

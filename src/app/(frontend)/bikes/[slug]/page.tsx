@@ -99,6 +99,22 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
   const brand = product.brand && typeof product.brand === 'object' ? product.brand : null
   const payload = await getPayload({ config: configPromise })
 
+  // Resolve competitor IDs if available
+  const competitorIds: number[] = []
+  if (product.directCompetitors && product.directCompetitors.length > 0) {
+    for (const c of product.directCompetitors) {
+      competitorIds.push(typeof c === 'object' ? c.id : c)
+    }
+  }
+  if (product.cheaperAlternative) {
+    const id = typeof product.cheaperAlternative === 'object' ? product.cheaperAlternative.id : product.cheaperAlternative
+    if (id && !competitorIds.includes(id)) competitorIds.push(id)
+  }
+  if (product.premiumAlternative) {
+    const id = typeof product.premiumAlternative === 'object' ? product.premiumAlternative.id : product.premiumAlternative
+    if (id && !competitorIds.includes(id)) competitorIds.push(id)
+  }
+
   // Fetch review sources, videos, and similar bikes in parallel
   const [reviewSources, videos, similar] = await Promise.all([
     payload.find({
@@ -114,16 +130,26 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
       limit: 10,
       where: { product: { equals: product.id } },
     }),
-    payload.find({
-      collection: 'products',
-      depth: 1,
-      limit: 3,
-      where: {
-        _status: { equals: 'published' },
-        slug: { not_equals: product.slug },
-        category: { equals: product.category },
-      },
-    }),
+    competitorIds.length > 0
+      ? payload.find({
+          collection: 'products',
+          depth: 1,
+          limit: 6,
+          where: {
+            _status: { equals: 'published' },
+            id: { in: competitorIds },
+          },
+        })
+      : payload.find({
+          collection: 'products',
+          depth: 1,
+          limit: 3,
+          where: {
+            _status: { equals: 'published' },
+            slug: { not_equals: product.slug },
+            category: { equals: product.category },
+          },
+        }),
   ])
 
   const affiliateUrlWithUtm = product.affiliateUrl
@@ -245,7 +271,7 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: `${product.name} - ${categoryLabels[product.category || ''] || 'Cargo Bike'}`,
+    description: product.oneLiner || `${product.name} - ${categoryLabels[product.category || ''] || 'Cargo Bike'}`,
     brand: brand ? { '@type': 'Brand', name: brand.name } : undefined,
     ...(product.overallScore ? {
       aggregateRating: {
@@ -314,6 +340,10 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               {product.name}
             </h1>
 
+            {product.tagline && (
+              <p className="text-base text-[#7A7A8C] mt-1.5 italic">{product.tagline}</p>
+            )}
+
             {brand && (
               <p className="text-[#7A7A8C] mt-2 text-base">
                 by{' '}
@@ -340,6 +370,20 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               </div>
             )}
 
+            {/* Not-for tags */}
+            {product.notFor && product.notFor.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {product.notFor.map((item, i) => (
+                  <span
+                    key={i}
+                    className="text-xs font-medium bg-red-50 text-red-600/80 px-3 py-1.5 rounded-full"
+                  >
+                    Not for: {item.text}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Price */}
             <div className="mt-6">
               {hasMultiplePrices ? (
@@ -354,8 +398,14 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               ) : product.price != null ? (
                 <p className="text-2xl font-semibold text-[#1A1A2E]">
                   ${product.price.toLocaleString()}
+                  {product.msrpTo && product.msrpTo > product.price && (
+                    <span> &ndash; ${product.msrpTo.toLocaleString()}</span>
+                  )}
                 </p>
               ) : null}
+              {product.priceNote && (
+                <p className="text-xs text-[#7A7A8C] mt-1">{product.priceNote}</p>
+              )}
               {product.onSale && (
                 <span className="inline-block mt-1 text-xs font-semibold text-[#E85D3A]">On sale</span>
               )}
@@ -468,6 +518,55 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               <div className="text-[#1A1A2E] text-[1.05rem] leading-[1.7]">
                 <RichText data={product.carryishTake} enableGutter={false} />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Verdict ─── */}
+        {product.verdict && (
+          <div className="mt-10 max-w-3xl">
+            <div className="bg-[#1A1A2E] rounded-lg px-8 py-5">
+              <p className="text-white text-base font-medium">
+                <span className="text-[#E85D3A] font-semibold">Bottom line:</span>{' '}
+                {product.verdict}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Pros & Cons ─── */}
+        {((product.pros && product.pros.length > 0) || (product.cons && product.cons.length > 0)) && (
+          <div className="mt-16 max-w-3xl" id="pros-cons">
+            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
+              Pros & Cons
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {product.pros && product.pros.length > 0 && (
+                <div>
+                  <h3 className="text-sm uppercase tracking-wider text-green-700 font-semibold mb-3">What we like</h3>
+                  <ul className="space-y-2">
+                    {product.pros.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-[#1A1A2E]">
+                        <span className="text-green-600 mt-0.5 shrink-0">+</span>
+                        {item.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {product.cons && product.cons.length > 0 && (
+                <div>
+                  <h3 className="text-sm uppercase tracking-wider text-red-700 font-semibold mb-3">Watch out for</h3>
+                  <ul className="space-y-2">
+                    {product.cons.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-[#1A1A2E]">
+                        <span className="text-red-500 mt-0.5 shrink-0">&ndash;</span>
+                        {item.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -635,11 +734,45 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           </div>
         )}
 
+        {/* ─── FAQ ─── */}
+        {product.faq && product.faq.length > 0 && (
+          <div className="mt-20 max-w-3xl" id="faq">
+            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
+              Frequently Asked Questions
+            </h2>
+            <div className="divide-y divide-[#7A7A8C]/10">
+              {product.faq.map((item, i) => (
+                <details key={i} className="group py-4">
+                  <summary className="flex items-center justify-between cursor-pointer list-none text-[#1A1A2E] font-medium text-base hover:text-[#E85D3A] transition-colors">
+                    {item.question}
+                    <svg
+                      className="w-5 h-5 text-[#7A7A8C] shrink-0 ml-4 group-open:rotate-180 transition-transform"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <p className="mt-3 text-sm text-[#1A1A2E]/80 leading-relaxed">{item.answer}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Competitors ─── */}
+        {product.comparisonContext && (
+          <div className="mt-20 max-w-3xl">
+            <p className="text-sm text-[#7A7A8C] italic">{product.comparisonContext}</p>
+          </div>
+        )}
+
         {/* ─── Similar bikes ─── */}
         {similar.docs.length > 0 && (
-          <div className="mt-20 pt-12 border-t border-[#7A7A8C]/10">
+          <div className="mt-8 pt-12 border-t border-[#7A7A8C]/10">
             <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-8">
-              Similar bikes
+              Compare alternatives
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {similar.docs.map((p) => {
@@ -713,10 +846,10 @@ export async function generateMetadata({ params: paramsPromise }: Args): Promise
   const brand = product.brand && typeof product.brand === 'object' ? product.brand.name : ''
 
   return {
-    title: `${product.name}${brand ? ` by ${brand}` : ''} | Carryish`,
-    description: product.overallScore
+    title: product.metaTitle || `${product.name}${brand ? ` by ${brand}` : ''} | Carryish`,
+    description: product.metaDescription || (product.overallScore
       ? `${product.name} scores ${product.overallScore}/10. ${product.bestFor?.map((b) => b.tag).join(', ') || 'Honest review with real tradeoffs.'}`
-      : `${product.name} - ${categoryLabels[product.category || ''] || 'Product'} reviewed on Carryish.`,
+      : `${product.name} - ${categoryLabels[product.category || ''] || 'Product'} reviewed on Carryish.`),
   }
 }
 

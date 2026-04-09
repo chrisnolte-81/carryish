@@ -851,6 +851,59 @@ export interface Product {
       }[]
     | null;
   /**
+   * Punchy one-liner, max 80 chars
+   */
+  tagline?: string | null;
+  /**
+   * Card/search summary, max 140 chars
+   */
+  oneLiner?: string | null;
+  /**
+   * Specific, honest pros (4-6)
+   */
+  pros?:
+    | {
+        text: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Specific, honest cons (3-5)
+   */
+  cons?:
+    | {
+        text: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Who should look elsewhere
+   */
+  notFor?:
+    | {
+        text: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * One sentence bottom line
+   */
+  verdict?: string | null;
+  /**
+   * 1-2 sentences naming closest competitors
+   */
+  comparisonContext?: string | null;
+  /**
+   * Common buyer questions (3-5)
+   */
+  faq?:
+    | {
+        question: string;
+        answer: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
    * Overall Carryish score (1-10)
    */
   overallScore?: number | null;
@@ -1016,9 +1069,18 @@ export interface Product {
    */
   display?: string | null;
   /**
-   * MSRP in USD
+   * MSRP starting price in USD
    */
   price?: number | null;
+  /**
+   * MSRP upper bound (for price ranges)
+   */
+  msrpTo?: number | null;
+  /**
+   * e.g. "P10 starts at $5,799; R14 at $9,499"
+   */
+  priceNote?: string | null;
+  productStatus?: ('in-stock' | 'pre-order' | 'discontinued' | 'coming-soon' | 'b2b-only') | null;
   /**
    * Common selling price if different
    */
@@ -1049,6 +1111,26 @@ export interface Product {
   brand?: (number | null) | Brand;
   category?: ('cargo-bike' | 'stroller' | 'trailer' | 'wagon' | 'accessory') | null;
   affiliateUrl: string;
+  /**
+   * Direct competitor products (same type, similar price)
+   */
+  directCompetitors?: (number | Product)[] | null;
+  /**
+   * Best budget alternative
+   */
+  cheaperAlternative?: (number | null) | Product;
+  /**
+   * Step-up premium alternative
+   */
+  premiumAlternative?: (number | null) | Product;
+  /**
+   * SEO title override
+   */
+  metaTitle?: string | null;
+  /**
+   * SEO meta description
+   */
+  metaDescription?: string | null;
   publishedAt?: string | null;
   /**
    * Image pipeline status
@@ -1771,6 +1853,35 @@ export interface ProductsSelect<T extends boolean = true> {
         tag?: T;
         id?: T;
       };
+  tagline?: T;
+  oneLiner?: T;
+  pros?:
+    | T
+    | {
+        text?: T;
+        id?: T;
+      };
+  cons?:
+    | T
+    | {
+        text?: T;
+        id?: T;
+      };
+  notFor?:
+    | T
+    | {
+        text?: T;
+        id?: T;
+      };
+  verdict?: T;
+  comparisonContext?: T;
+  faq?:
+    | T
+    | {
+        question?: T;
+        answer?: T;
+        id?: T;
+      };
   overallScore?: T;
   hillScore?: T;
   cargoScore?: T;
@@ -1847,6 +1958,9 @@ export interface ProductsSelect<T extends boolean = true> {
   fenders?: T;
   display?: T;
   price?: T;
+  msrpTo?: T;
+  priceNote?: T;
+  productStatus?: T;
   streetPriceUsd?: T;
   availableIn?: T;
   warrantyYears?: T;
@@ -1868,6 +1982,11 @@ export interface ProductsSelect<T extends boolean = true> {
   brand?: T;
   category?: T;
   affiliateUrl?: T;
+  directCompetitors?: T;
+  cheaperAlternative?: T;
+  premiumAlternative?: T;
+  metaTitle?: T;
+  metaDescription?: T;
   publishedAt?: T;
   imageStatus?: T;
   generateSlug?: T;
