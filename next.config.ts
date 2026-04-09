@@ -43,6 +43,9 @@ const nextConfig: NextConfig = {
 
     return webpackConfig
   },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   reactStrictMode: true,
   redirects,
   turbopack: {

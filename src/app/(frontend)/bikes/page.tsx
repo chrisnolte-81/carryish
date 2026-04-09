@@ -14,7 +14,7 @@ export default async function BikesPage() {
   const products = await payload.find({
     collection: 'products',
     depth: 1,
-    limit: 50,
+    limit: 200,
     overrideAccess: false,
     sort: '-publishedAt',
     where: {
@@ -26,6 +26,13 @@ export default async function BikesPage() {
 
   const serializedProducts = products.docs.map((product) => {
     const brand = product.brand && typeof product.brand === 'object' ? product.brand.name : null
+
+    // Strip redundant brand prefix from product name for card display
+    // e.g. "Tern GSD Gen 3" with brand "Tern" → "GSD Gen 3"
+    let displayName = product.name
+    if (brand && displayName.startsWith(brand + ' ')) {
+      displayName = displayName.slice(brand.length + 1)
+    }
 
     // Extract first real image (skip auto-generated info cards ending in -card.png)
     let thumbnailImage = null
@@ -41,9 +48,12 @@ export default async function BikesPage() {
       }
     }
 
+    // Determine if electric based on motor fields
+    const isElectric = !!(product.motorBrand || product.motorPosition || product.batteryWh)
+
     return {
       id: product.id,
-      name: product.name,
+      name: displayName,
       slug: product.slug || '',
       brand,
       category: product.category || '',
@@ -93,6 +103,7 @@ export default async function BikesPage() {
       // Tags
       bestFor: product.bestFor?.map((b) => b.tag) || [],
       testingStatus: product.testingStatus || null,
+      isElectric,
     }
   })
 

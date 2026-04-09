@@ -51,6 +51,7 @@ type Product = {
   suspensionType: string | null
   bestFor: string[]
   testingStatus: string | null
+  isElectric: boolean
 }
 
 type Filters = {
@@ -463,9 +464,9 @@ export function BikesClient({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
           {filtered.map((product) => {
             const specs = [
-              product.motorTorqueNm && `${product.motorTorqueNm}Nm`,
-              product.estimatedRealRangeMi && `~${product.estimatedRealRangeMi}mi`,
-              product.weightLbs && `${product.weightLbs}lbs`,
+              product.estimatedRealRangeMi && `${product.estimatedRealRangeMi} mi range`,
+              product.batteryWh && `${product.batteryWh} Wh`,
+              product.weightLbs && `${product.weightLbs} lbs`,
               product.maxChildPassengers != null && product.maxChildPassengers > 0 &&
                 `${product.maxChildPassengers} ${product.maxChildPassengers === 1 ? 'kid' : 'kids'}`,
             ].filter(Boolean) as string[]
@@ -478,12 +479,12 @@ export function BikesClient({
               <Link
                 key={product.id}
                 href={`/bikes/${product.slug}`}
-                className="group relative flex flex-col bg-white rounded-2xl overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_40px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 transition-all duration-300 no-underline"
+                className="group relative flex flex-col bg-white rounded-2xl overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300 no-underline"
               >
                 {/* Image area */}
-                <div className="relative aspect-[4/3] w-full bg-[#F3F1EE] overflow-hidden">
+                <div className="relative aspect-[4/3] w-full bg-white overflow-hidden">
                   {product.thumbnailImage ? (
-                    <Media resource={product.thumbnailImage} imgClassName="object-cover w-full h-full group-hover:scale-[1.03] transition-transform duration-500" fill />
+                    <Media resource={product.thumbnailImage} imgClassName="object-contain w-full h-full group-hover:scale-[1.03] transition-transform duration-500" fill />
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#F5F3F0] to-[#EBE8E4]">
                       <div className="w-14 h-14 rounded-2xl bg-white/80 flex items-center justify-center mb-3 shadow-sm">
@@ -502,6 +503,11 @@ export function BikesClient({
                     {product.testingStatus === 'tested' && (
                       <span className="bg-[#E85D3A] text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
                         Tested
+                      </span>
+                    )}
+                    {!product.isElectric && (
+                      <span className="bg-[#1A1A2E]/80 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
+                        Non-electric
                       </span>
                     )}
                   </div>
@@ -540,6 +546,7 @@ export function BikesClient({
                     </h3>
                     {product.price > 0 && (
                       <span className="text-[15px] font-bold text-[#1A1A2E] shrink-0 tabular-nums">
+                        <span className="text-[11px] font-normal text-[#7A7A8C]">From </span>
                         ${product.price.toLocaleString()}
                       </span>
                     )}
@@ -564,13 +571,13 @@ export function BikesClient({
                   )}
                 </div>
 
-                {/* Compare — bottom-right, visible on hover or when active */}
+                {/* Compare — bottom-right */}
                 <button
                   onClick={(e) => toggleCompare(product.slug, e)}
                   className={`absolute bottom-4 right-4 text-[11px] font-medium px-3 py-1.5 rounded-full border transition-all duration-200 cursor-pointer ${
                     compareList.includes(product.slug)
-                      ? 'bg-[#3A8FE8] text-white border-[#3A8FE8] opacity-100'
-                      : 'bg-white/90 backdrop-blur-sm text-[#7A7A8C] border-[#7A7A8C]/15 opacity-0 group-hover:opacity-100 hover:border-[#3A8FE8] hover:text-[#3A8FE8]'
+                      ? 'bg-[#3A8FE8] text-white border-[#3A8FE8]'
+                      : 'bg-white/90 backdrop-blur-sm text-[#7A7A8C] border-[#7A7A8C]/15 sm:opacity-0 sm:group-hover:opacity-100 hover:border-[#3A8FE8] hover:text-[#3A8FE8]'
                   }`}
                 >
                   {compareList.includes(product.slug) ? '✓ Comparing' : '+ Compare'}
