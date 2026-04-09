@@ -52,6 +52,7 @@ type Product = {
   bestFor: string[]
   testingStatus: string | null
   isElectric: boolean
+  powerType: string | null
 }
 
 type Filters = {
@@ -73,6 +74,13 @@ type Filters = {
   dualBattery: boolean
   removableBattery: boolean
   seatbelts: boolean
+  // Life-situation chips
+  greatOnHills: boolean
+  fits2Kids: boolean
+  lowMaintenance: boolean
+  apartmentFriendly: boolean
+  bestValue: boolean
+  carReplacement: boolean
 }
 
 const defaultFilters: Filters = {
@@ -94,6 +102,12 @@ const defaultFilters: Filters = {
   dualBattery: false,
   removableBattery: false,
   seatbelts: false,
+  greatOnHills: false,
+  fits2Kids: false,
+  lowMaintenance: false,
+  apartmentFriendly: false,
+  bestValue: false,
+  carReplacement: false,
 }
 
 // ─── Constants ───
@@ -121,6 +135,7 @@ const cargoLayoutOptions = [
   { value: 'front-box', label: 'Front-box', desc: 'Cargo up front' },
   { value: 'compact', label: 'Compact', desc: 'Normal-bike size' },
   { value: 'midtail', label: 'Midtail', desc: 'Between compact & long' },
+  { value: 'trike', label: 'Trike', desc: 'Three wheels, max cargo' },
 ]
 
 const motorOptions = [
@@ -138,6 +153,62 @@ const kidsOptions = [
   { value: '1', label: '1 kid' },
   { value: '2', label: '2+ kids' },
 ]
+
+type LifeSituationChip = {
+  key: keyof Filters
+  label: string
+  filter: (p: Product) => boolean
+}
+
+const lifeSituationChips: LifeSituationChip[] = [
+  {
+    key: 'greatOnHills',
+    label: 'Great on hills',
+    filter: (p) => (p.motorTorqueNm ?? 0) >= 65 && p.motorPosition === 'mid-drive',
+  },
+  {
+    key: 'fits2Kids',
+    label: 'Fits 2+ kids',
+    filter: (p) => (p.maxChildPassengers ?? 0) >= 2,
+  },
+  {
+    key: 'lowMaintenance',
+    label: 'Low maintenance',
+    filter: (p) => p.drivetrainType === 'belt',
+  },
+  {
+    key: 'apartmentFriendly',
+    label: 'Apartment-friendly',
+    filter: (p) => !!(p.fitsInElevator || p.foldable || (p.weightLbs != null && p.weightLbs < 60)),
+  },
+  {
+    key: 'bestValue',
+    label: 'Best value',
+    filter: (p) => (p.overallScore ?? 0) >= 8 && p.price < 4000,
+  },
+  {
+    key: 'carReplacement',
+    label: 'Car replacement',
+    filter: (p) => (p.cargoCapacityLbs ?? 0) >= 350 && (p.estimatedRealRangeMi ?? 0) >= 40,
+  },
+]
+
+/** Compute short spec-based tags for a product card (max 3) */
+function computeCardTags(p: Product): string[] {
+  const tags: string[] = []
+
+  if ((p.cargoCapacityLbs ?? 0) >= 350 && ((p.estimatedRealRangeMi ?? 0) >= 40 || (p.batteryWh ?? 0) >= 600))
+    tags.push('Car replacement')
+  if ((p.maxChildPassengers ?? 0) >= 2) tags.push('2+ kids')
+  if ((p.motorTorqueNm ?? 0) >= 65 && p.motorPosition === 'mid-drive') tags.push('Hill climber')
+  if (p.drivetrainType === 'belt') tags.push('Belt drive')
+  if (p.price < 2500 && p.price > 0) tags.push('Budget pick')
+  if (p.fitsInElevator || (p.weightLbs != null && p.weightLbs < 60)) tags.push('Apartment-friendly')
+  if (p.price >= 6000) tags.push('Premium build')
+  if ((p.estimatedRealRangeMi ?? 0) >= 50 || (p.batteryWh ?? 0) >= 800) tags.push('Best range')
+
+  return tags.slice(0, 3)
+}
 
 // ─── Component ───
 
@@ -182,6 +253,12 @@ export function BikesClient({
     if (filters.dualBattery) count++
     if (filters.removableBattery) count++
     if (filters.seatbelts) count++
+    if (filters.greatOnHills) count++
+    if (filters.fits2Kids) count++
+    if (filters.lowMaintenance) count++
+    if (filters.apartmentFriendly) count++
+    if (filters.bestValue) count++
+    if (filters.carReplacement) count++
     return count
   }, [filters])
 
@@ -286,6 +363,13 @@ export function BikesClient({
     if (filters.removableBattery) result = result.filter((p) => p.batteryRemovable)
     if (filters.seatbelts) result = result.filter((p) => p.hasSeatbelts)
 
+    // Life-situation filters
+    for (const chip of lifeSituationChips) {
+      if (filters[chip.key]) {
+        result = result.filter(chip.filter)
+      }
+    }
+
     // Sort
     switch (sortBy) {
       case 'score-desc':
@@ -347,6 +431,11 @@ export function BikesClient({
     if (filters.dualBattery) chips.push({ label: 'Dual battery', onRemove: () => updateFilter('dualBattery', false) })
     if (filters.removableBattery) chips.push({ label: 'Removable battery', onRemove: () => updateFilter('removableBattery', false) })
     if (filters.seatbelts) chips.push({ label: 'Seatbelts', onRemove: () => updateFilter('seatbelts', false) })
+    for (const chip of lifeSituationChips) {
+      if (filters[chip.key]) {
+        chips.push({ label: chip.label, onRemove: () => updateFilter(chip.key, false) })
+      }
+    }
     return chips
   }, [filters, updateFilter])
 
@@ -414,6 +503,23 @@ export function BikesClient({
               </span>
             )}
           </button>
+        </div>
+
+        {/* ─── Life-Situation Chips ─── */}
+        <div className="flex flex-wrap gap-2 items-center mb-4">
+          {lifeSituationChips.map((chip) => (
+            <button
+              key={chip.key}
+              onClick={() => updateFilter(chip.key, !filters[chip.key])}
+              className={`text-sm px-4 py-2 rounded-full border transition-all duration-150 cursor-pointer ${
+                filters[chip.key]
+                  ? 'bg-[#E85D3A] text-white border-[#E85D3A] shadow-sm'
+                  : 'bg-[#FAFAF8] text-[#1A1A2E] border-[#7A7A8C]/20 hover:border-[#1A1A2E]/40 hover:shadow-sm'
+              }`}
+            >
+              {chip.label}
+            </button>
+          ))}
         </div>
 
         {/* ─── Sort + Result count ─── */}
@@ -505,8 +611,8 @@ export function BikesClient({
                         Tested
                       </span>
                     )}
-                    {!product.isElectric && (
-                      <span className="bg-[#1A1A2E]/80 text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
+                    {(product.powerType === 'non-electric' || !product.isElectric) && (
+                      <span className="bg-[#E8E8EC] text-[#7A7A8C] text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
                         Non-electric
                       </span>
                     )}
@@ -514,8 +620,8 @@ export function BikesClient({
 
                   {/* Score badge */}
                   {product.overallScore && (
-                    <div className="absolute top-3 right-3 w-10 h-10 bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
-                      <span className="text-sm font-bold text-[#1A1A2E]">{product.overallScore}</span>
+                    <div className="absolute top-3 right-3 w-8 h-8 min-w-[32px] min-h-[32px] bg-white/95 backdrop-blur-sm rounded-full flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.1)]">
+                      <span className="text-xs font-bold text-[#1A1A2E]">{product.overallScore.toFixed(1)}</span>
                     </div>
                   )}
                 </div>
@@ -559,16 +665,15 @@ export function BikesClient({
                     </p>
                   )}
 
-                  {/* Best-for tags */}
-                  {product.bestFor.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-auto pt-3">
-                      {product.bestFor.slice(0, 3).map((tag) => (
-                        <span key={tag} className="text-[10px] font-medium bg-[#1A1A2E]/[0.04] text-[#1A1A2E]/60 px-2.5 py-1 rounded-full">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {/* Spec-based tags */}
+                  {(() => {
+                    const tags = computeCardTags(product)
+                    return tags.length > 0 ? (
+                      <p className="mt-auto pt-3 text-xs text-[#7A7A8C]">
+                        {tags.join(' \u00B7 ')}
+                      </p>
+                    ) : null
+                  })()}
                 </div>
 
                 {/* Compare — bottom-right */}

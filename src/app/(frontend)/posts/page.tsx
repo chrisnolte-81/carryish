@@ -40,22 +40,39 @@ export default async function Page() {
           </p>
         </div>
 
-        <div className="mb-8">
-          <PageRange
-            collection="posts"
-            currentPage={posts.page}
-            limit={12}
-            totalDocs={posts.totalDocs}
-          />
-        </div>
+        {posts.totalDocs > 0 ? (
+          <>
+            <div className="mb-8">
+              <PageRange
+                collection="posts"
+                currentPage={posts.page}
+                limit={12}
+                totalDocs={posts.totalDocs}
+              />
+            </div>
 
-        <CollectionArchive posts={posts.docs} />
+            <CollectionArchive posts={posts.docs} />
 
-        <div className="mt-12">
-          {posts.totalPages > 1 && posts.page && (
-            <Pagination page={posts.page} totalPages={posts.totalPages} />
-          )}
-        </div>
+            <div className="mt-12">
+              {posts.totalPages > 1 && posts.page && (
+                <Pagination page={posts.page} totalPages={posts.totalPages} />
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="py-16 text-center max-w-md mx-auto">
+            <p className="text-lg text-[#1A1A2E] font-medium mb-2">Blog coming soon</p>
+            <p className="text-[#7A7A8C] text-sm mb-6">
+              We&apos;re writing honest takes on cargo bikes, gear, and going car-lite. Sign up to get notified.
+            </p>
+            <a
+              href="/api/subscribe"
+              className="inline-block px-6 py-3 bg-[#E85D3A] text-white rounded-lg font-medium hover:bg-[#d14e2d] transition-colors no-underline text-sm"
+            >
+              Notify me
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )

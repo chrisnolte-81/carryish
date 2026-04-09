@@ -72,6 +72,59 @@ const bikeClassLabels: Record<string, string> = {
   'class-3': 'Class 3 (28 mph)',
 }
 
+/** Pick similar bikes by subcategory + price proximity, respecting powerType */
+function pickSimilar(
+  pool: Product[],
+  cargoLayout: string | null | undefined,
+  currentPrice: number,
+  isElectric: boolean,
+  count: number,
+): Product[] {
+  if (pool.length === 0 || count <= 0) return []
+
+  // Score each candidate
+  const scored = pool.map((p) => {
+    let score = 0
+    const pIsElectric = !!(p.motorBrand || p.motorPosition || p.batteryWh)
+
+    // Same subcategory is the strongest signal
+    if (cargoLayout && p.cargoLayout === cargoLayout) score += 100
+
+    // Adjacent subcategories get partial credit
+    const adjacent: Record<string, string[]> = {
+      longtail: ['midtail'],
+      midtail: ['longtail', 'compact'],
+      compact: ['midtail'],
+      'front-box': [],
+      trike: [],
+    }
+    if (cargoLayout && adjacent[cargoLayout]?.includes(p.cargoLayout || '')) score += 50
+
+    // Price proximity (within ±40% is ideal)
+    if (currentPrice > 0 && p.price) {
+      const ratio = p.price / currentPrice
+      if (ratio >= 0.6 && ratio <= 1.4) score += 30
+      else if (ratio >= 0.4 && ratio <= 1.6) score += 10
+    }
+
+    // Matching electric/non-electric
+    if (pIsElectric === isElectric) score += 20
+
+    return { product: p, score }
+  })
+
+  // Sort by score desc, then price proximity
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    // Tiebreak: closest in price
+    const aDiff = Math.abs((a.product.price || 0) - currentPrice)
+    const bDiff = Math.abs((b.product.price || 0) - currentPrice)
+    return aDiff - bDiff
+  })
+
+  return scored.slice(0, count).map((s) => s.product)
+}
+
 export async function generateStaticParams() {
   const payload = await getPayload({ config: configPromise })
   const products = await payload.find({
@@ -115,8 +168,8 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
     if (id && !competitorIds.includes(id)) competitorIds.push(id)
   }
 
-  // Fetch review sources, videos, and similar bikes in parallel
-  const [reviewSources, videos, similar] = await Promise.all([
+  // Fetch review sources, videos, and candidate similar bikes in parallel
+  const [reviewSources, videos, candidatePool] = await Promise.all([
     payload.find({
       collection: 'review-sources',
       depth: 0,
@@ -130,27 +183,39 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
       limit: 10,
       where: { product: { equals: product.id } },
     }),
-    competitorIds.length > 0
-      ? payload.find({
-          collection: 'products',
-          depth: 1,
-          limit: 6,
-          where: {
-            _status: { equals: 'published' },
-            id: { in: competitorIds },
-          },
-        })
-      : payload.find({
-          collection: 'products',
-          depth: 1,
-          limit: 3,
-          where: {
-            _status: { equals: 'published' },
-            slug: { not_equals: product.slug },
-            category: { equals: product.category },
-          },
-        }),
+    // Fetch a broad pool of published products to pick the best alternatives from
+    payload.find({
+      collection: 'products',
+      depth: 1,
+      limit: 50,
+      where: {
+        _status: { equals: 'published' },
+        slug: { not_equals: product.slug },
+        category: { equals: product.category },
+      },
+    }),
   ])
+
+  // Build smart similar bikes list:
+  // 1. Use explicit directCompetitors if set
+  // 2. Otherwise match by subcategory + price proximity, respecting powerType
+  const isElectric = !!(product.motorBrand || product.motorPosition || product.batteryWh)
+  const currentPrice = product.price || 0
+
+  let similarDocs = (() => {
+    // If explicit competitors are set, use those first
+    if (competitorIds.length > 0) {
+      const explicit = candidatePool.docs.filter((p) => competitorIds.includes(p.id))
+      if (explicit.length >= 3) return explicit.slice(0, 4)
+      // Supplement with auto-matched if not enough explicit competitors
+      const remaining = candidatePool.docs.filter((p) => !competitorIds.includes(p.id))
+      return [...explicit, ...pickSimilar(remaining, product.cargoLayout, currentPrice, isElectric, 4 - explicit.length)]
+    }
+
+    return pickSimilar(candidatePool.docs, product.cargoLayout, currentPrice, isElectric, 4)
+  })()
+
+  const similar = { docs: similarDocs }
 
   const affiliateUrlWithUtm = product.affiliateUrl
     ? `${product.affiliateUrl}${product.affiliateUrl.includes('?') ? '&' : '?'}utm_source=carryish&utm_medium=referral&utm_campaign=product-page`
@@ -332,6 +397,11 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               {product.testingStatus === 'tested' && (
                 <span className="text-xs font-semibold bg-[#E85D3A]/10 text-[#E85D3A] px-2.5 py-1 rounded-md">
                   Tested by Carryish
+                </span>
+              )}
+              {product.powerType === 'non-electric' && (
+                <span className="text-xs font-medium bg-[#E8E8EC] text-[#7A7A8C] px-2.5 py-1 rounded-md">
+                  Non-electric
                 </span>
               )}
             </div>
@@ -772,7 +842,7 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         {similar.docs.length > 0 && (
           <div className="mt-8 pt-12 border-t border-[#7A7A8C]/10">
             <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-8">
-              Compare alternatives
+              Similar bikes
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {similar.docs.map((p) => {

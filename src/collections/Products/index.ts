@@ -435,6 +435,17 @@ export const Products: CollectionConfig<'products'> = {
               ],
             },
             {
+              name: 'powerType',
+              type: 'select',
+              options: [
+                { label: 'Electric', value: 'electric' },
+                { label: 'Non-electric', value: 'non-electric' },
+                { label: 'Pedal-assist', value: 'pedal-assist' },
+              ],
+              defaultValue: 'electric',
+              admin: { description: 'Power type — electric is the default' },
+            },
+            {
               name: 'affiliateUrl',
               type: 'text',
               required: true,

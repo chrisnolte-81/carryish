@@ -67,12 +67,26 @@ export default async function ComparePage({ searchParams }: Props) {
     )
   }
 
+  const motorPositionLabels: Record<string, string> = {
+    'mid-drive': 'Mid-drive',
+    'hub-rear': 'Hub (rear)',
+    'hub-front': 'Hub (front)',
+  }
+
   const specRows = [
-    { label: 'Price', key: 'price', format: (v: any) => (v != null ? `$${v.toLocaleString()}` : '—') },
-    { label: 'Weight', key: 'weight', format: (v: any) => v || '—' },
-    { label: 'Cargo Capacity', key: 'cargoCapacity', format: (v: any) => v || '—' },
-    { label: 'Motor', key: 'motorType', format: (v: any) => v || '—' },
-    { label: 'Battery / Range', key: 'batteryRange', format: (v: any) => v || '—' },
+    { label: 'Price', getValue: (p: any) => p.price != null ? `$${p.price.toLocaleString()}` : '—' },
+    { label: 'Score', getValue: (p: any) => p.overallScore != null ? `${p.overallScore}/10` : '—' },
+    { label: 'Weight', getValue: (p: any) => p.weightLbs ? `${p.weightLbs} lbs` : '—' },
+    { label: 'Cargo capacity', getValue: (p: any) => p.cargoCapacityLbs ? `${p.cargoCapacityLbs} lbs` : '—' },
+    { label: 'Motor', getValue: (p: any) => {
+      const parts = [p.motorBrand, p.motorPosition ? motorPositionLabels[p.motorPosition] : null].filter(Boolean)
+      return parts.length > 0 ? parts.join(' — ') : '—'
+    }},
+    { label: 'Torque', getValue: (p: any) => p.motorTorqueNm ? `${p.motorTorqueNm} Nm` : '—' },
+    { label: 'Battery', getValue: (p: any) => p.batteryWh ? `${p.batteryWh} Wh` : '—' },
+    { label: 'Range (real)', getValue: (p: any) => p.estimatedRealRangeMi ? `~${p.estimatedRealRangeMi} mi` : '—' },
+    { label: 'Max kids', getValue: (p: any) => p.maxChildPassengers ?? '—' },
+    { label: 'Layout', getValue: (p: any) => p.cargoLayout || '—' },
   ]
 
   return (
@@ -126,13 +140,13 @@ export default async function ComparePage({ searchParams }: Props) {
             </thead>
             <tbody>
               {specRows.map((row) => (
-                <tr key={row.key}>
+                <tr key={row.label}>
                   <td className="p-4 border-b border-[#7A7A8C]/10 text-sm text-[#7A7A8C] font-medium">
                     {row.label}
                   </td>
                   {validProducts.map((p) => (
                     <td key={p.id} className="p-4 border-b border-[#7A7A8C]/10 text-sm text-[#1A1A2E] font-medium">
-                      {row.format((p as any)[row.key])}
+                      {row.getValue(p)}
                     </td>
                   ))}
                 </tr>

@@ -48,8 +48,10 @@ export default async function BikesPage() {
       }
     }
 
-    // Determine if electric based on motor fields
-    const isElectric = !!(product.motorBrand || product.motorPosition || product.batteryWh)
+    // Determine if electric based on powerType field or motor fields
+    const isElectric = product.powerType
+      ? product.powerType === 'electric' || product.powerType === 'pedal-assist'
+      : !!(product.motorBrand || product.motorPosition || product.batteryWh)
 
     return {
       id: product.id,
@@ -104,6 +106,7 @@ export default async function BikesPage() {
       bestFor: product.bestFor?.map((b) => b.tag) || [],
       testingStatus: product.testingStatus || null,
       isElectric,
+      powerType: (product.powerType as string) || null,
     }
   })
 

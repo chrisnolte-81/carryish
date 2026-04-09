@@ -1110,6 +1110,10 @@ export interface Product {
   saleEndDate?: string | null;
   brand?: (number | null) | Brand;
   category?: ('cargo-bike' | 'stroller' | 'trailer' | 'wagon' | 'accessory') | null;
+  /**
+   * Power type — electric is the default
+   */
+  powerType?: ('electric' | 'non-electric' | 'pedal-assist') | null;
   affiliateUrl: string;
   /**
    * Direct competitor products (same type, similar price)
@@ -1981,6 +1985,7 @@ export interface ProductsSelect<T extends boolean = true> {
   saleEndDate?: T;
   brand?: T;
   category?: T;
+  powerType?: T;
   affiliateUrl?: T;
   directCompetitors?: T;
   cheaperAlternative?: T;
