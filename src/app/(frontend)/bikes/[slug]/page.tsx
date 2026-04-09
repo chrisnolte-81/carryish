@@ -7,8 +7,9 @@ import React, { cache } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Media } from '@/components/Media'
+import { ProductGallery } from '@/components/ProductGallery'
 import RichText from '@/components/RichText'
-import type { Product, ReviewSource, ProductVideo } from '@/payload-types'
+import type { Product, Media as MediaType, ReviewSource, ProductVideo } from '@/payload-types'
 
 const categoryLabels: Record<string, string> = {
   'cargo-bike': 'Cargo Bike',
@@ -284,27 +285,14 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         {/* ─── Hero ─── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
           {/* Images */}
-          <div className="space-y-4">
-            {product.images && product.images.length > 0 ? (
-              product.images.map((image, i) =>
-                typeof image === 'object' ? (
-                  <div key={i} className="relative rounded-[10px] overflow-hidden bg-[#E8E0D4]">
-                    <Media resource={image} imgClassName="w-full h-auto object-cover" />
-                  </div>
-                ) : null,
-              )
-            ) : (
-              <div className="aspect-[4/3] rounded-[10px] bg-[#E8E0D4] flex items-center justify-center">
-                <div className="text-center px-4">
-                  <p className="font-[family-name:var(--font-fraunces)] text-2xl text-[#1A1A2E]/60 font-medium">
-                    {brand?.name || 'Brand'}
-                  </p>
-                  <p className="font-[family-name:var(--font-fraunces)] text-lg text-[#1A1A2E]/40 mt-2">
-                    {product.name}
-                  </p>
-                </div>
-              </div>
-            )}
+          <div>
+            <ProductGallery
+              images={
+                (product.images?.filter((img): img is MediaType => typeof img === 'object' && img !== null) || [])
+              }
+              brandName={brand?.name || undefined}
+              productName={product.name}
+            />
           </div>
 
           {/* Details sidebar */}
