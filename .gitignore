@@ -16,6 +16,10 @@ public/sitemap*.xml
 
 # Temp image generation
 .tmp-images/
+.tmp-pipeline/
+
+# Python venv for image pipeline (rembg + Pillow)
+.venv-pipeline/
 
 # Enrichment pipeline output
 data/
