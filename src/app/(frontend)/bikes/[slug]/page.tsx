@@ -14,6 +14,7 @@ import {
   type GalleryLifestyleItem,
 } from '@/components/ProductGallery'
 import RichText from '@/components/RichText'
+import { VariantBar } from '@/components/VariantBar'
 import type { Product, Media as MediaType, ReviewSource, ProductVideo } from '@/payload-types'
 
 const categoryLabels: Record<string, string> = {
@@ -440,7 +441,7 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         </nav>
 
         {/* ─── Hero ─── */}
-        <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-10 lg:gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12">
           {/* Images */}
           <div>
             <ProductGallery
@@ -481,51 +482,56 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               }
               brandName={brand?.name || undefined}
               productName={product.name}
+              testedBadge={product.testingStatus === 'tested'}
+              overallScore={product.overallScore}
             />
           </div>
 
           {/* Details sidebar */}
           <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {product.category && (
-                <span className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">
-                  {categoryLabels[product.category] || product.category}
-                </span>
-              )}
+            {/* Category label (standalone above title) */}
+            {product.category && (
+              <p className="text-[11px] uppercase tracking-[0.12em] text-[#7A7A8C] font-semibold">
+                {categoryLabels[product.category] || product.category}
+              </p>
+            )}
+
+            {/* Title + inline Gen badge */}
+            <div className="flex items-baseline gap-3 flex-wrap mt-1">
+              <h1 className="font-[family-name:var(--font-fraunces)] text-3xl sm:text-4xl font-semibold text-[#1A1A2E] tracking-tight">
+                {product.name}
+              </h1>
               {product.generation && (
-                <span className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-2.5 py-1 rounded-md">
+                <span className="text-[11px] font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-2 py-0.5 rounded-md whitespace-nowrap">
                   {product.generation}
-                </span>
-              )}
-              {product.testingStatus === 'tested' && (
-                <span className="text-xs font-semibold bg-[#E85D3A]/10 text-[#E85D3A] px-2.5 py-1 rounded-md">
-                  Tested by Carryish
-                </span>
-              )}
-              {product.powerType === 'non-electric' && (
-                <span className="text-xs font-medium bg-[#E8E8EC] text-[#7A7A8C] px-2.5 py-1 rounded-md">
-                  Non-electric
-                </span>
-              )}
-              {product.currentlyAvailable === false && (
-                <span className="text-xs font-semibold bg-red-50 text-red-700 px-2.5 py-1 rounded-md">
-                  Discontinued
                 </span>
               )}
             </div>
 
-            <h1 className="font-[family-name:var(--font-fraunces)] text-3xl sm:text-4xl font-semibold text-[#1A1A2E] mt-3 tracking-tight">
-              {product.name}
-            </h1>
+            {/* Status pills (only non-electric + discontinued — tested lives on the image) */}
+            {(product.powerType === 'non-electric' || product.currentlyAvailable === false) && (
+              <div className="flex items-center gap-2 flex-wrap mt-2">
+                {product.powerType === 'non-electric' && (
+                  <span className="text-xs font-medium bg-[#E8E8EC] text-[#7A7A8C] px-2.5 py-1 rounded-md">
+                    Non-electric
+                  </span>
+                )}
+                {product.currentlyAvailable === false && (
+                  <span className="text-xs font-semibold bg-red-50 text-red-700 px-2.5 py-1 rounded-md">
+                    Discontinued
+                  </span>
+                )}
+              </div>
+            )}
 
             {product.subtitle && (
-              <p className="font-[family-name:var(--font-fraunces)] text-lg text-[#1A1A2E]/70 mt-2 leading-snug">
+              <p className="font-[family-name:var(--font-fraunces)] text-lg text-[#1A1A2E]/70 mt-3 leading-snug italic">
                 {product.subtitle}
               </p>
             )}
 
-            {product.tagline && (
-              <p className="text-base text-[#7A7A8C] mt-1.5 italic">{product.tagline}</p>
+            {product.tagline && !product.subtitle && (
+              <p className="text-base text-[#7A7A8C] mt-2 italic">{product.tagline}</p>
             )}
 
             {brand && (
@@ -539,6 +545,31 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                 </Link>
               </p>
             )}
+
+            {/* Variant bar */}
+            {product.variants && product.variants.length > 0 && (() => {
+              const variantDocs = product.variants.filter(
+                (v): v is Product => typeof v === 'object' && v !== null,
+              )
+              if (variantDocs.length === 0) return null
+              const currentDrivetrain = [
+                product.numberOfGears ? `${product.numberOfGears}-speed` : null,
+                product.drivetrainType === 'belt' ? 'belt' : product.drivetrainType === 'chain' ? 'chain' : null,
+              ]
+                .filter(Boolean)
+                .join(' ')
+              return (
+                <VariantBar
+                  currentSlug={product.slug || ''}
+                  currentName={product.name}
+                  currentPrice={product.price}
+                  currentDrivetrainSummary={currentDrivetrain || null}
+                  modelFamily={product.modelFamily}
+                  brandName={brand?.name || null}
+                  variants={variantDocs}
+                />
+              )
+            })()}
 
             {/* Price */}
             <div className="mt-6">
@@ -634,124 +665,6 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           </div>
         </div>
 
-        {/* ─── Best for / Not for tags ─── */}
-        {((product.bestFor && product.bestFor.length > 0) || (product.notFor && product.notFor.length > 0)) && (
-          <div className="mt-10 max-w-4xl flex flex-wrap gap-2">
-            {product.bestFor?.map((item, i) => (
-              <span
-                key={`bf-${i}`}
-                className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-3 py-1.5 rounded-full"
-              >
-                {item.tag}
-              </span>
-            ))}
-            {product.notFor?.map((item, i) => (
-              <span
-                key={`nf-${i}`}
-                className="text-xs font-medium bg-red-50 text-red-600/80 px-3 py-1.5 rounded-full"
-              >
-                Not for: {item.text}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* ─── Variant comparison strip ─── */}
-        {product.variants && product.variants.length > 0 && (() => {
-          const variantDocs = product.variants.filter(
-            (v): v is Product => typeof v === 'object' && v !== null,
-          )
-          if (variantDocs.length === 0) return null
-
-          return (
-            <div className="mt-16 pt-10 border-t border-[#7A7A8C]/10">
-              <div className="flex items-baseline justify-between mb-6 flex-wrap gap-2">
-                <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E]">
-                  Other {product.modelFamily || 'variants'} in the lineup
-                </h2>
-                <p className="text-sm text-[#7A7A8C]">
-                  Same bones. Different trims, gearing, and price points.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {/* Current product card */}
-                <div className="relative bg-[#FAFAF8] border-2 border-[#E85D3A] rounded-[10px] overflow-hidden">
-                  <span className="absolute top-2 left-2 z-10 bg-[#E85D3A] text-white text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded">
-                    You are here
-                  </span>
-                  <div className="relative aspect-[4/3] w-full bg-[#FAFAF8]">
-                    {product.images && product.images.length > 0 && typeof product.images[0] === 'object' ? (
-                      <Media resource={product.images[0]} imgClassName="object-contain w-full h-full" />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-[#1A1A2E]/40 text-xs">
-                        {product.name}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-[family-name:var(--font-fraunces)] text-base font-semibold text-[#1A1A2E] leading-tight">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center justify-between mt-2">
-                      {product.price != null ? (
-                        <span className="text-sm font-semibold text-[#1A1A2E]">
-                          ${product.price.toLocaleString()}
-                        </span>
-                      ) : (
-                        <span />
-                      )}
-                      {product.overallScore != null && (
-                        <span className="text-xs font-bold bg-[#1A1A2E] text-white px-1.5 py-0.5 rounded">
-                          {product.overallScore}/10
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                {variantDocs.map((v) => {
-                  const vImage = v.images && v.images.length > 0 ? v.images[0] : null
-                  return (
-                    <Link
-                      key={v.id}
-                      href={`/bikes/${v.slug}`}
-                      className="group block bg-[#FAFAF8] border border-[#7A7A8C]/15 rounded-[10px] overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 no-underline"
-                    >
-                      <div className="relative aspect-[4/3] w-full bg-[#FAFAF8]">
-                        {vImage && typeof vImage === 'object' ? (
-                          <Media resource={vImage} imgClassName="object-contain w-full h-full" />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center text-[#1A1A2E]/40 text-xs px-2 text-center">
-                            {v.name}
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-[family-name:var(--font-fraunces)] text-base font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors leading-tight">
-                          {v.name}
-                        </h3>
-                        <div className="flex items-center justify-between mt-2">
-                          {v.price != null ? (
-                            <span className="text-sm font-semibold text-[#1A1A2E]">
-                              ${v.price.toLocaleString()}
-                            </span>
-                          ) : (
-                            <span />
-                          )}
-                          {v.overallScore != null && (
-                            <span className="text-xs font-bold bg-[#1A1A2E]/80 text-white px-1.5 py-0.5 rounded">
-                              {v.overallScore}/10
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-          )
-        })()}
-
         {/* ─── Carryish Scores ─── */}
         {hasScores && (
           <div className="mt-16 pt-8 border-t border-[#E8E8EC]" id="scores">
@@ -787,14 +700,36 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         {/* ─── Carryish Take ─── */}
         {product.carryishTake && (
           <div className="mt-16 max-w-3xl">
-            <div className="bg-white border-l-[3px] border-[#E85D3A] px-6 py-5">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-sm font-medium text-[#E85D3A] mb-2">
+            <div className="border-l-[3px] border-[#E85D3A] pl-6 py-1">
+              <h2 className="font-[family-name:var(--font-fraunces)] text-sm font-medium text-[#E85D3A] mb-2 uppercase tracking-wider">
                 The Carryish Take
               </h2>
-              <div className="text-[#1A1A2E] text-sm leading-[1.7]">
+              <div className="text-[#1A1A2E] text-base leading-[1.7]">
                 <RichText data={product.carryishTake} enableGutter={false} />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ─── Best for / Not for tags (below the Take) ─── */}
+        {((product.bestFor && product.bestFor.length > 0) || (product.notFor && product.notFor.length > 0)) && (
+          <div className="mt-8 max-w-3xl flex flex-wrap gap-2">
+            {product.bestFor?.map((item, i) => (
+              <span
+                key={`bf-${i}`}
+                className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-3 py-1.5 rounded-full"
+              >
+                {item.tag}
+              </span>
+            ))}
+            {product.notFor?.map((item, i) => (
+              <span
+                key={`nf-${i}`}
+                className="text-xs font-medium bg-red-50 text-red-600/80 px-3 py-1.5 rounded-full"
+              >
+                Not for: {item.text}
+              </span>
+            ))}
           </div>
         )}
 

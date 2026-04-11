@@ -32,6 +32,8 @@ interface ProductGalleryProps {
   colorOptions?: GalleryColorOption[]
   brandName?: string
   productName: string
+  testedBadge?: boolean
+  overallScore?: number | null
 }
 
 type TabKey = 'product' | 'details' | 'lifestyle'
@@ -49,6 +51,8 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
   colorOptions = [],
   brandName,
   productName,
+  testedBadge = false,
+  overallScore = null,
 }) => {
   // null = "All" / default (use product.images)
   // number = selected color index (use that color's hero + angle)
@@ -272,6 +276,25 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
               <div className="absolute top-3 right-3 bg-[#1A1A2E]/60 text-white text-xs font-medium px-2 py-1 rounded-md">
                 {selectedIndex + 1} / {currentSlides.length}
               </div>
+            )}
+
+            {/* Tested badge overlay (product tab only) */}
+            {testedBadge && activeTab === 'product' && (
+              <span className="absolute top-3 left-3 bg-[#E85D3A] text-white text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm">
+                Tested
+              </span>
+            )}
+
+            {/* Overall score badge overlay (product tab only, hidden when counter shown top-right) */}
+            {overallScore != null && activeTab === 'product' && currentSlides.length <= 1 && (
+              <span className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-[#1A1A2E] text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
+                {overallScore}
+              </span>
+            )}
+            {overallScore != null && activeTab === 'product' && currentSlides.length > 1 && (
+              <span className="absolute top-14 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-[#1A1A2E] text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
+                {overallScore}
+              </span>
             )}
           </button>
         )}
