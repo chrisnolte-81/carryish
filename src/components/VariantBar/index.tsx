@@ -30,16 +30,13 @@ function stripPrefix(
   return stripped.trim() || name
 }
 
-/** Short drivetrain summary like "10-speed chain" or "14-speed belt". */
+/** Short drivetrain differentiator like "CVP stepless", "5-spd hub", or "10-spd". */
 function drivetrainSummary(product: Product): string | null {
   const gears = product.numberOfGears
-  const type = product.drivetrainType
-  if (!gears && !type) return null
-  const parts: string[] = []
-  if (gears) parts.push(`${gears}-speed`)
-  if (type === 'belt') parts.push('belt')
-  else if (type === 'chain') parts.push('chain')
-  return parts.join(' ') || null
+  if (product.gearType === 'cvp') return 'CVP stepless'
+  if (product.gearType === 'internal-hub' && gears) return `${gears}-spd hub`
+  if (gears) return `${gears}-spd`
+  return null
 }
 
 export const VariantBar: React.FC<VariantBarProps> = ({

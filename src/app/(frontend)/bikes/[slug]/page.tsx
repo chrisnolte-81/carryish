@@ -13,6 +13,7 @@ import {
   type GalleryDetailItem,
   type GalleryLifestyleItem,
 } from '@/components/ProductGallery'
+import { ColorSyncProvider, ColorSwatches } from '@/components/ColorSync'
 import RichText from '@/components/RichText'
 import { VariantBar } from '@/components/VariantBar'
 import type { Product, Media as MediaType, ReviewSource, ProductVideo } from '@/payload-types'
@@ -443,6 +444,7 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         </nav>
 
         {/* ─── Hero ─── */}
+        <ColorSyncProvider>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12">
           {/* Images */}
           <div>
@@ -548,18 +550,30 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               </p>
             )}
 
+            {/* Color swatches — shared state with the gallery via ColorSyncProvider */}
+            <ColorSwatches
+              colorOptions={(product.colorOptions || []).map((c) => ({
+                colorName: c.colorName,
+                colorHex: c.colorHex,
+              }))}
+            />
+
             {/* Variant bar */}
             {product.variants && product.variants.length > 0 && (() => {
               const variantDocs = product.variants.filter(
                 (v): v is Product => typeof v === 'object' && v !== null,
               )
               if (variantDocs.length === 0) return null
-              const currentDrivetrain = [
-                product.numberOfGears ? `${product.numberOfGears}-speed` : null,
-                product.drivetrainType === 'belt' ? 'belt' : product.drivetrainType === 'chain' ? 'chain' : null,
-              ]
-                .filter(Boolean)
-                .join(' ')
+              const drivetrainGears = product.numberOfGears
+              const drivetrainFromGearType =
+                product.gearType === 'cvp'
+                  ? 'CVP stepless'
+                  : product.gearType === 'internal-hub' && drivetrainGears
+                    ? `${drivetrainGears}-spd hub`
+                    : drivetrainGears
+                      ? `${drivetrainGears}-spd`
+                      : null
+              const currentDrivetrain = drivetrainFromGearType
               return (
                 <>
                   <VariantBar
@@ -643,10 +657,8 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               if (product.batteryWh != null)
                 specs.push({ value: String(product.batteryWh), unit: 'Wh', label: 'Battery' })
               if (product.maxChildPassengers != null && product.maxChildPassengers > 0)
-                specs.push({ value: String(product.maxChildPassengers), label: 'Passengers' })
-              // Fallbacks to reach 6 cells
-              if (specs.length < 6 && product.dualBatteryWh != null)
-                specs.push({ value: String(product.dualBatteryWh), unit: 'Wh', label: 'Dual battery' })
+                specs.push({ value: `${product.maxChildPassengers}`, label: 'Kids' })
+              // 6th-slot fallbacks: foldable > cargo
               if (specs.length < 6 && product.foldable)
                 specs.push({ value: 'Yes', label: 'Foldable' })
               if (specs.length < 6 && product.cargoCapacityLbs != null)
@@ -685,32 +697,33 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
             </div>
           </div>
         </div>
+        </ColorSyncProvider>
 
         {/* ─── Carryish Scores ─── */}
         {hasScores && (
-          <div className="mt-16 pt-8 border-t border-[#E8E8EC]" id="scores">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
+          <div className="mt-10 pt-5 border-t border-[#E8E8EC]" id="scores">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[#7A7A8C] mb-3">
               Carryish Scores
             </h2>
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
               {scores.map((score) => {
                 const isOverall = score.label === 'Overall'
                 return (
                   <div
                     key={score.label}
-                    className={`flex-1 min-w-[90px] text-center px-2 py-3 bg-white rounded-lg border ${
+                    className={`flex-1 min-w-[86px] text-center px-2 py-2 bg-white rounded-lg border ${
                       isOverall ? 'border-[#E85D3A]' : 'border-[#E8E8EC]'
                     }`}
                   >
                     <p
-                      className={`text-xl font-medium leading-none ${
+                      className={`text-lg font-medium leading-none ${
                         isOverall ? 'text-[#E85D3A]' : 'text-[#1A1A2E]'
                       }`}
                     >
                       {score.value}
                       <span className="text-xs text-[#7A7A8C] ml-0.5">/10</span>
                     </p>
-                    <p className="text-[11px] text-[#7A7A8C] mt-1.5">{score.label}</p>
+                    <p className="text-[10px] text-[#7A7A8C] mt-1">{score.label}</p>
                   </div>
                 )
               })}
@@ -719,32 +732,40 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         )}
 
         {/* ─── Carryish Take ─── */}
-        {product.carryishTake && (
-          <div className="mt-16 max-w-3xl">
+        {(product.carryishTake || product.verdict) && (
+          <div className="mt-10 max-w-3xl">
             <div className="border-l-[3px] border-[#E85D3A] pl-6 py-1">
               <h2 className="font-[family-name:var(--font-fraunces)] text-sm font-medium text-[#E85D3A] mb-2 uppercase tracking-wider">
                 The Carryish Take
               </h2>
-              <div className="text-[#1A1A2E] text-base leading-[1.7]">
-                <RichText data={product.carryishTake} enableGutter={false} />
-              </div>
+              {product.carryishTake && (
+                <div className="text-[#1A1A2E] text-base leading-[1.7]">
+                  <RichText data={product.carryishTake} enableGutter={false} />
+                </div>
+              )}
+              {product.verdict && (
+                <p className="mt-3 text-sm italic text-[#7A7A8C] leading-relaxed">
+                  <span className="font-semibold text-[#1A1A2E] not-italic">Bottom line: </span>
+                  {product.verdict}
+                </p>
+              )}
             </div>
           </div>
         )}
 
         {/* ─── Best for / Not for (below the Take) ─── */}
         {((product.bestFor && product.bestFor.length > 0) || (product.notFor && product.notFor.length > 0)) && (
-          <div className="mt-10 pt-8 border-t border-[#E8E8EC]/60 max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <div className="mt-6 pt-5 border-t border-[#E8E8EC]/60 max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-6">
             {product.bestFor && product.bestFor.length > 0 && (
               <div>
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7A8C] mb-3">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7A8C] mb-2">
                   Best for
                 </h3>
-                <ul className="space-y-2">
+                <ul className="space-y-1.5">
                   {product.bestFor.map((item, i) => (
                     <li
                       key={`bf-${i}`}
-                      className="flex gap-2 text-sm text-[#1A1A2E] leading-[1.5]"
+                      className="flex gap-2 text-[13px] text-[#1A1A2E] leading-[1.5]"
                     >
                       <span className="text-[#3B6D11] shrink-0" aria-hidden="true">✓</span>
                       <span>{item.tag}</span>
@@ -755,14 +776,14 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
             )}
             {product.notFor && product.notFor.length > 0 && (
               <div>
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7A8C] mb-3">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7A8C] mb-2">
                   Not for
                 </h3>
-                <ul className="space-y-2">
+                <ul className="space-y-1.5">
                   {product.notFor.map((item, i) => (
                     <li
                       key={`nf-${i}`}
-                      className="text-sm text-[#7A7A8C] leading-[1.5]"
+                      className="text-[13px] text-[#7A7A8C] leading-[1.5]"
                     >
                       {item.text}
                     </li>
@@ -781,27 +802,17 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           )
           if (lifestyleDocs.length === 0) return null
           return (
-            <div className="mt-20" id="in-the-wild">
-              <div className="flex items-baseline justify-between mb-6 flex-wrap gap-2">
-                <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E]">
-                  In the wild
-                </h2>
-                <p className="text-sm text-[#7A7A8C]">
-                  How it actually gets used.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="mt-12" id="in-the-wild">
+              <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-4">
+                In the wild
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {lifestyleDocs.slice(0, 6).map((entry, i) => (
                   <figure
                     key={i}
                     className="relative overflow-hidden rounded-[10px] bg-[#E8E8EC] aspect-[4/3]"
                   >
                     <Media resource={entry.image} imgClassName="object-cover w-full h-full" />
-                    {entry.caption && (
-                      <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#1A1A2E]/80 to-transparent p-4 text-xs text-white font-medium">
-                        {entry.caption}
-                      </figcaption>
-                    )}
                   </figure>
                 ))}
               </div>
@@ -809,31 +820,19 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           )
         })()}
 
-        {/* ─── Verdict ─── */}
-        {product.verdict && (
-          <div className="mt-10 max-w-3xl">
-            <div className="bg-[#1A1A2E] rounded-lg px-8 py-5">
-              <p className="text-white text-base font-medium">
-                <span className="text-[#E85D3A] font-semibold">Bottom line:</span>{' '}
-                {product.verdict}
-              </p>
-            </div>
-          </div>
-        )}
-
         {/* ─── Pros & Cons ─── */}
         {((product.pros && product.pros.length > 0) || (product.cons && product.cons.length > 0)) && (
-          <div className="mt-16 max-w-3xl" id="pros-cons">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
+          <div className="mt-10 max-w-3xl" id="pros-cons">
+            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-4">
               Pros & Cons
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {product.pros && product.pros.length > 0 && (
                 <div>
-                  <h3 className="text-sm uppercase tracking-wider text-green-700 font-semibold mb-3">What we like</h3>
-                  <ul className="space-y-2">
+                  <h3 className="text-xs uppercase tracking-wider text-green-700 font-semibold mb-2">What we like</h3>
+                  <ul className="space-y-1.5">
                     {product.pros.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-[#1A1A2E]">
+                      <li key={i} className="flex items-start gap-2 text-[13px] text-[#1A1A2E] leading-[1.5]">
                         <span className="text-green-600 mt-0.5 shrink-0">+</span>
                         {item.text}
                       </li>
@@ -843,10 +842,10 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               )}
               {product.cons && product.cons.length > 0 && (
                 <div>
-                  <h3 className="text-sm uppercase tracking-wider text-red-700 font-semibold mb-3">Watch out for</h3>
-                  <ul className="space-y-2">
+                  <h3 className="text-xs uppercase tracking-wider text-red-700 font-semibold mb-2">Watch out for</h3>
+                  <ul className="space-y-1.5">
                     {product.cons.map((item, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-[#1A1A2E]">
+                      <li key={i} className="flex items-start gap-2 text-[13px] text-[#1A1A2E] leading-[1.5]">
                         <span className="text-red-500 mt-0.5 shrink-0">&ndash;</span>
                         {item.text}
                       </li>
@@ -1156,12 +1155,12 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
 
         {/* ─── Similar bikes ─── */}
         {similar.docs.length > 0 && (
-          <div className="mt-8 pt-12 border-t border-[#7A7A8C]/10">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-8">
+          <div className="mt-12 pt-8 border-t border-[#7A7A8C]/10">
+            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-4">
               Similar bikes
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {similar.docs.map((p) => {
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {similar.docs.slice(0, 4).map((p) => {
                 const pBrand = p.brand && typeof p.brand === 'object' ? p.brand.name : null
                 const pImage = p.images && p.images.length > 0 ? p.images[0] : null
 
@@ -1177,29 +1176,29 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center px-4">
-                            <p className="font-[family-name:var(--font-fraunces)] text-lg text-[#1A1A2E]/60 font-medium">
+                            <p className="font-[family-name:var(--font-fraunces)] text-base text-[#1A1A2E]/60 font-medium">
                               {pBrand || 'Brand'}
                             </p>
-                            <p className="font-[family-name:var(--font-fraunces)] text-sm text-[#1A1A2E]/40 mt-1">
+                            <p className="font-[family-name:var(--font-fraunces)] text-xs text-[#1A1A2E]/40 mt-1">
                               {p.name}
                             </p>
                           </div>
                         </div>
                       )}
-                      {p.overallScore && (
-                        <span className="absolute top-3 right-3 bg-[#1A1A2E]/80 text-white text-xs font-bold px-2 py-1 rounded">
+                      {p.overallScore != null && (
+                        <span className="absolute top-2 right-2 bg-[#1A1A2E]/80 text-white text-[11px] font-bold px-1.5 py-0.5 rounded">
                           {p.overallScore}/10
                         </span>
                       )}
                     </div>
-                    <div className="p-6">
-                      <h3 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors">
+                    <div className="p-3">
+                      <h3 className="font-[family-name:var(--font-fraunces)] text-sm font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors line-clamp-1">
                         {p.name}
                       </h3>
-                      <div className="flex items-center justify-between mt-2">
-                        {pBrand && <span className="text-sm text-[#7A7A8C]">{pBrand}</span>}
+                      <div className="flex items-center justify-between mt-1">
+                        {pBrand && <span className="text-[11px] text-[#7A7A8C]">{pBrand}</span>}
                         {p.price != null && (
-                          <span className="text-sm font-semibold text-[#1A1A2E]">
+                          <span className="text-[11px] font-semibold text-[#1A1A2E]">
                             ${p.price.toLocaleString()}
                           </span>
                         )}

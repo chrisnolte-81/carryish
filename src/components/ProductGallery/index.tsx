@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import NextImage from 'next/image'
 import { cn } from '@/utilities/ui'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
+import { useColorSync } from '@/components/ColorSync'
 import type { Media } from '@/payload-types'
 
 export interface GalleryDetailItem {
@@ -99,13 +100,13 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
   testedBadge = false,
   overallScore = null,
 }) => {
-  // null = "All" / default (use product.images)
-  // number = selected color index (use that color's hero + angle)
-  const [selectedColorIndex, setSelectedColorIndex] = useState<number | null>(null)
+  // Shared color state — owned by ColorSyncProvider in the parent so the
+  // swatches can live in a different column of the layout.
+  const { selectedColorIndex } = useColorSync()
 
-  // Colors are renderable as swatches as long as they have a hex value.
-  // If they also have per-color hero images we swap the gallery on click;
-  // otherwise the swatch is a visual reference only.
+  // Colors are renderable only if they have a hex value. We still need the
+  // filtered list here to look up the per-color hero image for the selected
+  // index (the swatch UI lives in <ColorSwatches/> but uses the same filter).
   const usableColors = useMemo(
     () => colorOptions.filter((c) => typeof c.colorHex === 'string' && c.colorHex.length > 0),
     [colorOptions],
@@ -269,48 +270,6 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
   return (
     <>
       <div className="space-y-3">
-        {/* Color swatches */}
-        {usableColors.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-medium text-[#7A7A8C] uppercase tracking-wide mr-1">
-              Color:
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedColorIndex(null)}
-              className={cn(
-                'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
-                selectedColorIndex === null
-                  ? 'bg-[#1A1A2E] text-white'
-                  : 'bg-[#E8E0D4]/60 text-[#7A7A8C] hover:text-[#1A1A2E]',
-              )}
-            >
-              All
-            </button>
-            {usableColors.map((c, i) => (
-              <button
-                key={`${c.colorName}-${i}`}
-                type="button"
-                onClick={() => setSelectedColorIndex(i)}
-                className={cn(
-                  'relative w-8 h-8 rounded-full border-2 transition-all',
-                  selectedColorIndex === i
-                    ? 'border-[#E85D3A] ring-2 ring-[#E85D3A]/20 ring-offset-2 ring-offset-[#FAFAF8] scale-110'
-                    : 'border-[#7A7A8C]/20 hover:border-[#1A1A2E]/40',
-                )}
-                style={{ backgroundColor: c.colorHex || '#E8E0D4' }}
-                aria-label={`Show ${c.colorName}`}
-                title={c.colorName}
-              />
-            ))}
-            {selectedColorIndex !== null && usableColors[selectedColorIndex] && (
-              <span className="text-xs text-[#1A1A2E] font-medium ml-1">
-                {usableColors[selectedColorIndex].colorName}
-              </span>
-            )}
-          </div>
-        )}
-
         {/* Tab bar */}
         {availableTabs.length > 1 && (
           <div className="flex gap-1 border-b border-[#7A7A8C]/15">
@@ -389,13 +348,13 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
 
             {/* Overall score badge overlay (product tab only, hidden when counter shown top-right) */}
             {overallScore != null && activeTab === 'product' && currentSlides.length <= 1 && (
-              <span className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-[#1A1A2E] text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
-                {overallScore}
+              <span className="absolute top-3 right-3 w-10 h-10 flex items-center justify-center rounded-full bg-white text-[#1A1A2E] text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
+                {overallScore.toFixed(1)}
               </span>
             )}
             {overallScore != null && activeTab === 'product' && currentSlides.length > 1 && (
-              <span className="absolute top-14 right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-[#1A1A2E] text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
-                {overallScore}
+              <span className="absolute top-14 right-3 w-10 h-10 flex items-center justify-center rounded-full bg-white text-[#1A1A2E] text-sm font-bold shadow-[0_2px_8px_rgba(0,0,0,0.12)]">
+                {overallScore.toFixed(1)}
               </span>
             )}
           </button>
