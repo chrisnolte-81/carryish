@@ -31,6 +31,64 @@ const gearTypeLabels: Record<string, string> = {
   'single-speed': 'Single speed',
 }
 
+type FamilyMeta = {
+  subtitle?: string
+  take?: string
+  decisionHelper?: { title: string; body: string }
+  sharedFeatures?: Array<{ icon: string; title: string; description: string }>
+}
+
+// Family-level editorial overrides. When a family slug matches, these values
+// replace the variant-derived subtitle and Take, and supply extra sections.
+const FAMILY_METADATA: Record<string, FamilyMeta> = {
+  'tern-gsd': {
+    subtitle: 'The compact longtail that folds. Three builds, one platform. Gen 3.',
+    take:
+      "Every GSD shares the same folding frame, 463 lb capacity, and 20\" wheels. The difference is drivetrain: the S10 gives you a proven Shimano chain for the least money. The P00 upgrades to a Gates belt that never needs maintenance. The R14 goes all-in with a Rohloff 14-speed that'll outlast the bike.",
+    decisionHelper: {
+      title: 'Not sure which GSD?',
+      body: 'The S10 is right for most families. Upgrade to the P00 if you hate chain maintenance, or step up to the R14 for the last drivetrain you will ever need.',
+    },
+    sharedFeatures: [
+      { icon: 'F', title: 'FlatFold', description: 'Handlebar folds down, seatpost telescopes. Fits in SUVs and tight spaces.' },
+      { icon: 'V', title: 'Vertical parking', description: 'Stands upright on its tail. Footprint of a potted plant.' },
+      { icon: 'A', title: 'Bosch ABS', description: 'Prevents wheel lockup in wet conditions and emergency braking.' },
+      { icon: 'L', title: 'Integrated lights', description: 'Supernova headlight + RearStop brake light, powered by main battery.' },
+      { icon: 'K', title: 'Atlas lockstand', description: 'Auto-locking double-leg kickstand with remote unlock.' },
+      { icon: 'S', title: 'Smart system', description: 'Bosch Kiox 300, Flow app, GPS anti-theft, electronic lock.' },
+    ],
+  },
+}
+
+/**
+ * Compute display tags for a single variant card: drivetrain, gearing, colors.
+ * Belt drive and Rohloff hub get the green "standout" highlight.
+ */
+function variantCardTags(p: Product): Array<{ label: string; highlight?: boolean }> {
+  const tags: Array<{ label: string; highlight?: boolean }> = []
+  if (p.drivetrainType === 'belt') {
+    tags.push({ label: 'Belt drive', highlight: true })
+  } else if (p.drivetrainType === 'chain') {
+    tags.push({ label: 'Chain drive' })
+  } else if (p.drivetrainType === 'shaft') {
+    tags.push({ label: 'Shaft drive' })
+  }
+  if (p.drivetrainBrand && /rohloff/i.test(p.drivetrainBrand)) {
+    tags.push({ label: 'Rohloff hub', highlight: true })
+  } else if (p.gearType === 'cvp') {
+    tags.push({ label: 'CVP shifting' })
+  } else if (p.gearType === 'internal-hub' && p.numberOfGears) {
+    tags.push({ label: `${p.numberOfGears}-speed hub` })
+  } else if (p.gearType === 'derailleur' && p.numberOfGears) {
+    tags.push({ label: `${p.numberOfGears}-speed` })
+  }
+  const colorCount = (p.colorOptions || []).length
+  if (colorCount > 1) {
+    tags.push({ label: `${colorCount} colors` })
+  }
+  return tags
+}
+
 /**
  * Family slugs look like "{brand-slug}-{model-family-lowercase}".
  * E.g. "tern-gsd", "tern-hsd", "urban-arrow-family".
@@ -161,13 +219,14 @@ function findSharedSpecs(products: Product[]): SharedRow[] {
   return rows
 }
 
-// Build comparison rows that differ across variants
+// Build comparison rows that differ across variants, grouped by section
 type CompareRow = { label: string; values: (string | null)[]; bestIndex?: number }
-function buildCompareRows(products: Product[]): CompareRow[] {
-  const rows: CompareRow[] = []
+type CompareSection = { title: string; rows: CompareRow[] }
 
+function buildCompareSections(products: Product[]): CompareSection[] {
   type Col = {
     label: string
+    section: string
     get: (p: Product) => string | null
     bestBy?: 'max' | 'min'
     raw?: (p: Product) => number | null
@@ -176,12 +235,21 @@ function buildCompareRows(products: Product[]): CompareRow[] {
   const cols: Col[] = [
     {
       label: 'Price',
+      section: 'Price and value',
       get: (p) => (p.price != null ? `$${p.price.toLocaleString()}` : null),
       raw: (p) => p.price ?? null,
       bestBy: 'min',
     },
     {
+      label: 'Overall score',
+      section: 'Price and value',
+      get: (p) => (p.overallScore != null ? `${p.overallScore}/10` : null),
+      raw: (p) => p.overallScore ?? null,
+      bestBy: 'max',
+    },
+    {
       label: 'Drivetrain',
+      section: 'Drivetrain',
       get: (p) =>
         p.drivetrainType
           ? `${drivetrainLabels[p.drivetrainType] || p.drivetrainType}${
@@ -191,6 +259,7 @@ function buildCompareRows(products: Product[]): CompareRow[] {
     },
     {
       label: 'Gearing',
+      section: 'Drivetrain',
       get: (p) =>
         p.gearType
           ? `${gearTypeLabels[p.gearType] || p.gearType}${
@@ -200,29 +269,33 @@ function buildCompareRows(products: Product[]): CompareRow[] {
     },
     {
       label: 'Battery',
+      section: 'Battery and range',
       get: (p) => (p.batteryWh ? `${p.batteryWh}Wh` : null),
       raw: (p) => p.batteryWh ?? null,
       bestBy: 'max',
     },
     {
       label: 'Stated range',
+      section: 'Battery and range',
       get: (p) => (p.statedRangeMi ? `${p.statedRangeMi} mi` : null),
       raw: (p) => p.statedRangeMi ?? null,
       bestBy: 'max',
     },
     {
-      label: 'Overall score',
-      get: (p) => (p.overallScore != null ? `${p.overallScore}/10` : null),
-      raw: (p) => p.overallScore ?? null,
-      bestBy: 'max',
+      label: 'Frame weight',
+      section: 'Weight',
+      get: (p) => (p.weightLbs != null ? `${p.weightLbs} lbs` : null),
+      raw: (p) => p.weightLbs ?? null,
+      bestBy: 'min',
     },
   ]
 
+  const sectionMap = new Map<string, CompareRow[]>()
+
   for (const col of cols) {
     const values = products.map((p) => col.get(p))
-    // Only include rows where at least one product has a value
     if (values.every((v) => v == null)) continue
-    // Skip rows where all values are identical (shared → show in shared section)
+    // Skip rows where all values are identical (shared specs)
     const unique = new Set(values.map((v) => v || ''))
     if (unique.size === 1) continue
 
@@ -245,10 +318,15 @@ function buildCompareRows(products: Product[]): CompareRow[] {
       })
     }
 
-    rows.push({ label: col.label, values, bestIndex })
+    if (!sectionMap.has(col.section)) sectionMap.set(col.section, [])
+    sectionMap.get(col.section)!.push({ label: col.label, values, bestIndex })
   }
 
-  return rows
+  const sections: CompareSection[] = []
+  for (const [title, rows] of sectionMap) {
+    if (rows.length > 0) sections.push({ title, rows })
+  }
+  return sections
 }
 
 export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
@@ -268,8 +346,12 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
   const sorted = [...products].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))
 
   const ourPick = pickOurPick(products)
+  const ourPickIndex = ourPick ? sorted.findIndex((p) => p.id === ourPick.id) : -1
   const shared = findSharedSpecs(products)
-  const compareRows = buildCompareRows(sorted)
+  const compareSections = buildCompareSections(sorted)
+
+  // Resolve family metadata override if defined for this family slug
+  const familyMeta = FAMILY_METADATA[decodedFamily] || null
 
   // Find the best "family hero" image from the cheapest (base) product
   const familyHeroProduct = sorted[0]
@@ -278,9 +360,10 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
       ? familyHeroProduct.images[0]
       : null
 
-  // Pick a shared carryishTake — use the base variant's
-  const familyTake = familyHeroProduct.carryishTake || null
-  const familySubtitle = familyHeroProduct.subtitle
+  // Family-level subtitle + Take: prefer explicit override, fall back to base variant's
+  const familySubtitle = familyMeta?.subtitle || familyHeroProduct.subtitle
+  const familyTakeOverride = familyMeta?.take || null
+  const familyTakeRich = !familyTakeOverride ? familyHeroProduct.carryishTake || null : null
 
   // Shared certifications (if all products have identical ones)
   const firstCerts = (first.certifications || []).map((c) => c.name).sort().join('|')
@@ -366,41 +449,35 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
         </div>
 
         {/* ─── Family Carryish Take ─── */}
-        {familyTake && (
+        {(familyTakeOverride || familyTakeRich) && (
           <div className="mt-4 max-w-3xl">
-            <div className="bg-[#FAFAF8] border-l-[3px] border-[#E85D3A] pl-8 py-6">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#E85D3A] mb-4">
+            <div className="bg-white border-l-[3px] border-[#E85D3A] px-6 py-5">
+              <h2 className="font-[family-name:var(--font-fraunces)] text-sm font-medium text-[#E85D3A] mb-2">
                 The Carryish Take on the {modelFamily}
               </h2>
-              <div className="text-[#1A1A2E] text-[1.05rem] leading-[1.7]">
-                <RichText data={familyTake} enableGutter={false} />
-              </div>
+              {familyTakeOverride ? (
+                <p className="text-[#1A1A2E] text-sm leading-[1.7]">{familyTakeOverride}</p>
+              ) : familyTakeRich ? (
+                <div className="text-[#1A1A2E] text-sm leading-[1.7]">
+                  <RichText data={familyTakeRich} enableGutter={false} />
+                </div>
+              ) : null}
             </div>
           </div>
         )}
 
-        {/* ─── Which one should you get? ─── */}
-        {products.length > 1 && (
-          <div className="mt-16 max-w-3xl bg-[#FEF0EC] border border-[#E85D3A]/20 rounded-[14px] p-8">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-xl font-semibold text-[#1A1A2E] mb-4">
-              Which one should you get?
-            </h2>
-            <ul className="space-y-3 text-sm text-[#1A1A2E]/85 leading-relaxed">
-              {sorted.map((p) => (
-                <li key={p.id} className="flex items-start gap-3">
-                  <span className="text-[#E85D3A] font-bold shrink-0 mt-0.5">→</span>
-                  <span>
-                    <Link
-                      href={`/bikes/${p.slug}`}
-                      className="font-semibold text-[#1A1A2E] hover:text-[#E85D3A] no-underline"
-                    >
-                      {p.name}
-                    </Link>
-                    {p.subtitle && <span className="text-[#7A7A8C]"> — {p.subtitle}</span>}
-                  </span>
-                </li>
-              ))}
-            </ul>
+        {/* ─── Decision helper ─── */}
+        {products.length > 1 && familyMeta?.decisionHelper && (
+          <div className="mt-8 max-w-3xl bg-[#FEF0EC] rounded-[10px] px-5 py-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-[#E85D3A] flex items-center justify-center text-white text-base font-medium shrink-0">
+              ?
+            </div>
+            <div className="flex-1">
+              <p className="text-sm leading-[1.5] text-[#1A1A2E]">
+                <strong className="font-semibold">{familyMeta.decisionHelper.title}</strong>{' '}
+                <span className="text-[#1A1A2E]/85">{familyMeta.decisionHelper.body}</span>
+              </p>
+            </div>
           </div>
         )}
 
@@ -413,6 +490,7 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
             {sorted.map((p) => {
               const pImage = p.images && p.images.length > 0 ? p.images[0] : null
               const isOurPick = ourPick?.id === p.id
+              const tags = variantCardTags(p)
               return (
                 <Link
                   key={p.id}
@@ -444,6 +522,22 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
                         {p.subtitle}
                       </p>
                     )}
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {tags.map((tag, i) => (
+                          <span
+                            key={i}
+                            className={`text-[11px] px-2 py-0.5 rounded ${
+                              tag.highlight
+                                ? 'bg-[#EAF3DE] text-[#3B6D11]'
+                                : 'bg-[#E8E8EC] text-[#7A7A8C]'
+                            }`}
+                          >
+                            {tag.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#7A7A8C]/10">
                       {p.price != null ? (
                         <span className="text-base font-semibold text-[#1A1A2E]">
@@ -466,74 +560,132 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
         </div>
 
         {/* ─── Comparison table ─── */}
-        {compareRows.length > 0 && sorted.length > 1 && (
+        {compareSections.length > 0 && sorted.length > 1 && (
           <div className="mt-20">
             <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
               Compare variants
             </h2>
-            <div className="overflow-x-auto rounded-[12px] border border-[#7A7A8C]/15">
-              <table className="min-w-full text-sm">
+            <div className="overflow-x-auto rounded-[12px] border border-[#E8E8EC] bg-white">
+              <table className="min-w-full text-[13px] border-collapse">
                 <thead>
-                  <tr className="bg-[#FAFAF8] border-b border-[#7A7A8C]/15">
-                    <th className="text-left px-4 py-3 text-xs uppercase tracking-wider text-[#7A7A8C] font-semibold">
+                  <tr className="border-b border-[#E8E8EC]">
+                    <th className="text-left px-3 py-2 text-[11px] uppercase tracking-wider text-[#7A7A8C] font-semibold w-[140px]">
                       Spec
                     </th>
-                    {sorted.map((p) => (
-                      <th
-                        key={p.id}
-                        className="text-left px-4 py-3 text-xs uppercase tracking-wider text-[#1A1A2E] font-semibold whitespace-nowrap"
-                      >
-                        <Link
-                          href={`/bikes/${p.slug}`}
-                          className="text-[#1A1A2E] hover:text-[#E85D3A] no-underline"
-                        >
-                          {p.name.replace(`${brand?.name || ''} `, '').replace(`${modelFamily} `, '') || p.name}
-                        </Link>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#7A7A8C]/10 bg-white">
-                  {compareRows.map((row) => (
-                    <tr key={row.label}>
-                      <td className="px-4 py-3 text-[#7A7A8C]">{row.label}</td>
-                      {row.values.map((v, i) => (
-                        <td
-                          key={i}
-                          className={`px-4 py-3 font-medium ${
-                            row.bestIndex === i ? 'text-[#E85D3A]' : 'text-[#1A1A2E]'
+                    {sorted.map((p, i) => {
+                      const isOurPick = ourPickIndex === i
+                      return (
+                        <th
+                          key={p.id}
+                          className={`text-left px-3 py-2 text-[11px] uppercase tracking-wider font-semibold whitespace-nowrap ${
+                            isOurPick ? 'bg-[#FEF0EC] text-[#E85D3A]' : 'text-[#1A1A2E]'
                           }`}
                         >
-                          {v || '—'}
+                          <Link
+                            href={`/bikes/${p.slug}`}
+                            className={`no-underline ${
+                              isOurPick ? 'text-[#E85D3A]' : 'text-[#1A1A2E]'
+                            } hover:text-[#E85D3A]`}
+                          >
+                            {p.name.replace(`${brand?.name || ''} `, '').replace(`${modelFamily} `, '') || p.name}
+                          </Link>
+                          {isOurPick && (
+                            <span className="block text-[9px] font-medium text-[#E85D3A] mt-0.5 normal-case tracking-normal">
+                              Our pick
+                            </span>
+                          )}
+                        </th>
+                      )
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {compareSections.map((section) => (
+                    <React.Fragment key={section.title}>
+                      <tr>
+                        <td
+                          colSpan={sorted.length + 1}
+                          className="bg-[#E8E8EC] px-3 py-1.5 text-[11px] uppercase tracking-wider text-[#7A7A8C] font-semibold"
+                        >
+                          {section.title}
                         </td>
+                      </tr>
+                      {section.rows.map((row) => (
+                        <tr key={row.label} className="border-b border-[#E8E8EC] last:border-b-0">
+                          <td className="px-3 py-2 text-[#7A7A8C]">{row.label}</td>
+                          {row.values.map((v, i) => {
+                            const isBest = row.bestIndex === i
+                            const isOurPick = ourPickIndex === i
+                            return (
+                              <td
+                                key={i}
+                                className={`px-3 py-2 ${isOurPick ? 'bg-[#FEF0EC]' : ''} ${
+                                  isBest
+                                    ? 'text-[#E85D3A] font-medium'
+                                    : 'text-[#1A1A2E]'
+                                }`}
+                              >
+                                {v || '—'}
+                              </td>
+                            )
+                          })}
+                        </tr>
                       ))}
-                    </tr>
+                    </React.Fragment>
                   ))}
+                  {shared.length > 0 && (
+                    <React.Fragment>
+                      <tr>
+                        <td
+                          colSpan={sorted.length + 1}
+                          className="bg-[#E8E8EC] px-3 py-1.5 text-[11px] uppercase tracking-wider text-[#7A7A8C] font-semibold"
+                        >
+                          Shared across all models
+                        </td>
+                      </tr>
+                      {shared.map((row) => (
+                        <tr key={row.label} className="border-b border-[#E8E8EC] last:border-b-0">
+                          <td className="px-3 py-2 text-[#7A7A8C]">{row.label}</td>
+                          <td
+                            colSpan={sorted.length}
+                            className="px-3 py-2 text-center text-[#7A7A8C]"
+                          >
+                            {row.value}
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  )}
                 </tbody>
               </table>
             </div>
             <p className="mt-3 text-xs text-[#7A7A8C]">
-              Values in <span className="text-[#E85D3A] font-semibold">coral</span> are the best in the lineup for that row.
+              Values in <span className="text-[#E85D3A] font-medium">coral</span> are the best in the lineup for that row.
             </p>
           </div>
         )}
 
-        {/* ─── Shared specs ─── */}
-        {shared.length > 0 && (
-          <div className="mt-20">
+        {/* ─── Shared features ─── */}
+        {familyMeta?.sharedFeatures && familyMeta.sharedFeatures.length > 0 && (
+          <div className="mt-20 max-w-3xl">
             <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
               What every {modelFamily} shares
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {shared.map((row) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {familyMeta.sharedFeatures.map((f, i) => (
                 <div
-                  key={row.label}
-                  className="p-5 rounded-[10px] bg-white border border-[#7A7A8C]/15"
+                  key={i}
+                  className="flex gap-3 p-3 bg-white rounded-lg border border-[#E8E8EC]"
                 >
-                  <p className="text-xs uppercase tracking-wider text-[#7A7A8C] font-semibold">
-                    {row.label}
-                  </p>
-                  <p className="text-base font-semibold text-[#1A1A2E] mt-1.5">{row.value}</p>
+                  <div className="w-8 h-8 rounded-lg bg-[#E8E8EC] flex items-center justify-center shrink-0 text-xs font-semibold text-[#7A7A8C]">
+                    {f.icon}
+                  </div>
+                  <div className="text-xs leading-[1.4] text-[#7A7A8C]">
+                    <strong className="block text-[#1A1A2E] font-medium mb-0.5">
+                      {f.title}
+                    </strong>
+                    {f.description}
+                  </div>
                 </div>
               ))}
             </div>
@@ -542,35 +694,16 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
 
         {/* ─── Shared certifications ─── */}
         {sharedCerts.length > 0 && (
-          <div className="mt-20 max-w-3xl">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
-              Safety certifications
-            </h2>
-            <div className="flex flex-wrap gap-3">
+          <div className="mt-12 max-w-3xl">
+            <div className="flex flex-wrap gap-2">
               {sharedCerts.map((cert, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-3 bg-[#3A8FE8]/5 border border-[#3A8FE8]/20 rounded-lg px-4 py-3 max-w-sm"
+                  className="inline-flex items-center gap-1.5 bg-white border border-[#E8E8EC] rounded-md px-3 py-1 text-xs text-[#7A7A8C]"
+                  title={cert.description || undefined}
                 >
-                  <svg
-                    className="w-5 h-5 text-[#3A8FE8] shrink-0 mt-0.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-semibold text-[#1A1A2E]">{cert.name}</p>
-                    {cert.description && (
-                      <p className="text-xs text-[#7A7A8C] mt-0.5 leading-snug">{cert.description}</p>
-                    )}
-                  </div>
+                  <span className="text-green-600 text-sm leading-none">✓</span>
+                  <span>{cert.name}</span>
                 </div>
               ))}
             </div>

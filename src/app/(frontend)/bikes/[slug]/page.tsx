@@ -440,7 +440,7 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         </nav>
 
         {/* ─── Hero ─── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-10 lg:gap-12">
           {/* Images */}
           <div>
             <ProductGallery
@@ -540,34 +540,6 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               </p>
             )}
 
-            {/* Best-for tags */}
-            {product.bestFor && product.bestFor.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-5">
-                {product.bestFor.map((item, i) => (
-                  <span
-                    key={i}
-                    className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-3 py-1.5 rounded-full"
-                  >
-                    {item.tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Not-for tags */}
-            {product.notFor && product.notFor.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {product.notFor.map((item, i) => (
-                  <span
-                    key={i}
-                    className="text-xs font-medium bg-red-50 text-red-600/80 px-3 py-1.5 rounded-full"
-                  >
-                    Not for: {item.text}
-                  </span>
-                ))}
-              </div>
-            )}
-
             {/* Price */}
             <div className="mt-6">
               {hasMultiplePrices ? (
@@ -607,46 +579,44 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               If you buy through our links, we earn a small commission. It doesn&apos;t change what we recommend.
             </p>
 
-            {/* Quick specs */}
-            <div className="mt-8 pt-6 border-t border-[#7A7A8C]/10">
-              <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
-                {product.weightLbs && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">Weight</dt>
-                    <dd className="text-[#1A1A2E] font-medium mt-0.5">{product.weightLbs} lbs</dd>
-                  </div>
-                )}
-                {product.maxSystemWeightLbs && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">Max load</dt>
-                    <dd className="text-[#1A1A2E] font-medium mt-0.5">{product.maxSystemWeightLbs} lbs</dd>
-                  </div>
-                )}
-                {product.motorTorqueNm && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">Torque</dt>
-                    <dd className="text-[#1A1A2E] font-medium mt-0.5">{product.motorTorqueNm} Nm</dd>
-                  </div>
-                )}
-                {product.estimatedRealRangeMi && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">Range (real)</dt>
-                    <dd className="text-[#1A1A2E] font-medium mt-0.5">~{product.estimatedRealRangeMi} mi</dd>
-                  </div>
-                )}
-                {product.batteryWh && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">Battery</dt>
-                    <dd className="text-[#1A1A2E] font-medium mt-0.5">{product.batteryWh}Wh</dd>
-                  </div>
-                )}
-                {product.maxChildPassengers != null && product.maxChildPassengers > 0 && (
-                  <div>
-                    <dt className="text-xs uppercase tracking-wider text-[#7A7A8C] font-medium">Kids</dt>
-                    <dd className="text-[#1A1A2E] font-medium mt-0.5">Up to {product.maxChildPassengers}</dd>
-                  </div>
-                )}
-              </dl>
+            {/* Quick specs grid */}
+            <div className="mt-6 grid grid-cols-3 gap-2">
+              {product.weightLbs != null && (
+                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
+                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.weightLbs}<span className="text-xs text-[#7A7A8C] ml-0.5">lbs</span></p>
+                  <p className="text-[11px] text-[#7A7A8C] mt-1">Weight</p>
+                </div>
+              )}
+              {product.maxSystemWeightLbs != null && (
+                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
+                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.maxSystemWeightLbs}<span className="text-xs text-[#7A7A8C] ml-0.5">lbs</span></p>
+                  <p className="text-[11px] text-[#7A7A8C] mt-1">Max load</p>
+                </div>
+              )}
+              {product.motorTorqueNm != null && (
+                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
+                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.motorTorqueNm}<span className="text-xs text-[#7A7A8C] ml-0.5">Nm</span></p>
+                  <p className="text-[11px] text-[#7A7A8C] mt-1">Torque</p>
+                </div>
+              )}
+              {product.estimatedRealRangeMi != null && (
+                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
+                  <p className="text-base font-medium text-[#1A1A2E] leading-none">~{product.estimatedRealRangeMi}<span className="text-xs text-[#7A7A8C] ml-0.5">mi</span></p>
+                  <p className="text-[11px] text-[#7A7A8C] mt-1">Real range</p>
+                </div>
+              )}
+              {product.batteryWh != null && (
+                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
+                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.batteryWh}<span className="text-xs text-[#7A7A8C] ml-0.5">Wh</span></p>
+                  <p className="text-[11px] text-[#7A7A8C] mt-1">Battery</p>
+                </div>
+              )}
+              {product.maxChildPassengers != null && product.maxChildPassengers > 0 && (
+                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
+                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.maxChildPassengers}</p>
+                  <p className="text-[11px] text-[#7A7A8C] mt-1">Kids</p>
+                </div>
+              )}
             </div>
 
             {/* Warranty & availability */}
@@ -663,6 +633,28 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
             </div>
           </div>
         </div>
+
+        {/* ─── Best for / Not for tags ─── */}
+        {((product.bestFor && product.bestFor.length > 0) || (product.notFor && product.notFor.length > 0)) && (
+          <div className="mt-10 max-w-4xl flex flex-wrap gap-2">
+            {product.bestFor?.map((item, i) => (
+              <span
+                key={`bf-${i}`}
+                className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-3 py-1.5 rounded-full"
+              >
+                {item.tag}
+              </span>
+            ))}
+            {product.notFor?.map((item, i) => (
+              <span
+                key={`nf-${i}`}
+                className="text-xs font-medium bg-red-50 text-red-600/80 px-3 py-1.5 rounded-full"
+              >
+                Not for: {item.text}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* ─── Variant comparison strip ─── */}
         {product.variants && product.variants.length > 0 && (() => {
@@ -762,40 +754,44 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
 
         {/* ─── Carryish Scores ─── */}
         {hasScores && (
-          <div className="mt-20 max-w-3xl" id="scores">
+          <div className="mt-16 pt-8 border-t border-[#E8E8EC]" id="scores">
             <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
               Carryish Scores
             </h2>
-            <div className="space-y-4">
-              {scores.map((score) => (
-                <div key={score.label} className="flex items-center gap-4">
-                  <span className="text-sm text-[#7A7A8C] w-16 shrink-0">{score.label}</span>
-                  <div className="flex-1 h-3 bg-[#1A1A2E]/5 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${(score.value! / 10) * 100}%`,
-                        backgroundColor: score.color,
-                      }}
-                    />
+            <div className="flex gap-3 flex-wrap">
+              {scores.map((score) => {
+                const isOverall = score.label === 'Overall'
+                return (
+                  <div
+                    key={score.label}
+                    className={`flex-1 min-w-[90px] text-center px-2 py-3 bg-white rounded-lg border ${
+                      isOverall ? 'border-[#E85D3A]' : 'border-[#E8E8EC]'
+                    }`}
+                  >
+                    <p
+                      className={`text-xl font-medium leading-none ${
+                        isOverall ? 'text-[#E85D3A]' : 'text-[#1A1A2E]'
+                      }`}
+                    >
+                      {score.value}
+                      <span className="text-xs text-[#7A7A8C] ml-0.5">/10</span>
+                    </p>
+                    <p className="text-[11px] text-[#7A7A8C] mt-1.5">{score.label}</p>
                   </div>
-                  <span className="text-sm font-semibold text-[#1A1A2E] w-8 text-right">
-                    {score.value}/10
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
 
         {/* ─── Carryish Take ─── */}
         {product.carryishTake && (
-          <div className="mt-20 max-w-3xl">
-            <div className="bg-[#FAFAF8] border-l-[3px] border-[#E85D3A] pl-8 py-6">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#E85D3A] mb-4">
+          <div className="mt-16 max-w-3xl">
+            <div className="bg-white border-l-[3px] border-[#E85D3A] px-6 py-5">
+              <h2 className="font-[family-name:var(--font-fraunces)] text-sm font-medium text-[#E85D3A] mb-2">
                 The Carryish Take
               </h2>
-              <div className="text-[#1A1A2E] text-[1.05rem] leading-[1.7]">
+              <div className="text-[#1A1A2E] text-sm leading-[1.7]">
                 <RichText data={product.carryishTake} enableGutter={false} />
               </div>
             </div>
@@ -935,35 +931,16 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
 
         {/* ─── Safety Certifications ─── */}
         {product.certifications && product.certifications.length > 0 && (
-          <div className="mt-20 max-w-3xl" id="certifications">
-            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
-              Safety certifications
-            </h2>
-            <div className="flex flex-wrap gap-3">
+          <div className="mt-12 max-w-3xl" id="certifications">
+            <div className="flex flex-wrap gap-2">
               {product.certifications.map((cert, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-3 bg-[#3A8FE8]/5 border border-[#3A8FE8]/20 rounded-lg px-4 py-3 max-w-sm"
+                  className="inline-flex items-center gap-1.5 bg-white border border-[#E8E8EC] rounded-md px-3 py-1 text-xs text-[#7A7A8C]"
+                  title={cert.description || undefined}
                 >
-                  <svg
-                    className="w-5 h-5 text-[#3A8FE8] shrink-0 mt-0.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                    />
-                  </svg>
-                  <div>
-                    <p className="text-sm font-semibold text-[#1A1A2E]">{cert.name}</p>
-                    {cert.description && (
-                      <p className="text-xs text-[#7A7A8C] mt-0.5 leading-snug">{cert.description}</p>
-                    )}
-                  </div>
+                  <span className="text-green-600 text-sm leading-none">✓</span>
+                  <span>{cert.name}</span>
                 </div>
               ))}
             </div>
@@ -1044,14 +1021,14 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
               {reviewSources.docs.map((review) => (
                 <a
                   key={review.id}
                   href={review.sourceUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block p-5 border border-[#7A7A8C]/15 rounded-[10px] hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 no-underline group"
+                  className="block shrink-0 w-[260px] p-4 bg-white border border-[#E8E8EC] rounded-[10px] hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 no-underline group"
                 >
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div>
