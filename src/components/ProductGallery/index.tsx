@@ -58,24 +58,38 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
   // number = selected color index (use that color's hero + angle)
   const [selectedColorIndex, setSelectedColorIndex] = useState<number | null>(null)
 
-  // Only colors that actually have a hero image are usable
+  // Colors are renderable as swatches as long as they have a hex value.
+  // If they also have per-color hero images we swap the gallery on click;
+  // otherwise the swatch is a visual reference only.
   const usableColors = useMemo(
-    () => colorOptions.filter((c) => c.heroImage && typeof c.heroImage === 'object'),
+    () => colorOptions.filter((c) => typeof c.colorHex === 'string' && c.colorHex.length > 0),
     [colorOptions],
   )
 
   // Build slides for each tab
   const tabSlides = useMemo(() => {
-    // When a color is selected, product-tab slides come from that color's hero + angle
+    // When a color with per-color images is selected, swap in those slides.
+    // Otherwise fall back to the product's default images.
     let product: { image: Media; caption?: string | null }[]
-    if (selectedColorIndex !== null && usableColors[selectedColorIndex]) {
-      const c = usableColors[selectedColorIndex]
+    const selectedColor =
+      selectedColorIndex !== null ? usableColors[selectedColorIndex] : null
+    const hasSwappableImages =
+      selectedColor &&
+      ((selectedColor.heroImage && typeof selectedColor.heroImage === 'object') ||
+        (selectedColor.angleImage && typeof selectedColor.angleImage === 'object'))
+    if (selectedColor && hasSwappableImages) {
       const slides: { image: Media; caption?: string | null }[] = []
-      if (c.heroImage && typeof c.heroImage === 'object') {
-        slides.push({ image: c.heroImage, caption: `${c.colorName} — side profile` })
+      if (selectedColor.heroImage && typeof selectedColor.heroImage === 'object') {
+        slides.push({
+          image: selectedColor.heroImage,
+          caption: `${selectedColor.colorName} — side profile`,
+        })
       }
-      if (c.angleImage && typeof c.angleImage === 'object') {
-        slides.push({ image: c.angleImage, caption: `${c.colorName} — 3/4 angle` })
+      if (selectedColor.angleImage && typeof selectedColor.angleImage === 'object') {
+        slides.push({
+          image: selectedColor.angleImage,
+          caption: `${selectedColor.colorName} — 3/4 angle`,
+        })
       }
       product = slides
     } else {

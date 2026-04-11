@@ -58,6 +58,15 @@ const FAMILY_METADATA: Record<string, FamilyMeta> = {
       { icon: 'S', title: 'Smart system', description: 'Bosch Kiox 300, Flow app, GPS anti-theft, electronic lock.' },
     ],
   },
+  'tern-quick-haul': {
+    subtitle: "Tern's affordable cargo platform. Two builds, one frame family. Compact or stretched.",
+    take:
+      "Both Quick Hauls undercut the GSD by two grand while running the same Bosch platform. The P9 Sport at $3,399 is the compact pick — one kid plus groceries, 65Nm motor, fits an apartment elevator. The Long D9 adds $600 for a stretched midtail deck, an 85Nm motor, and 88 lbs more capacity — RadWagon 5 Plus territory, minus the RadPower reliability concerns.",
+    decisionHelper: {
+      title: 'Compact or stretched?',
+      body: 'Go P9 Sport if you have one kid and live in a small apartment. Step up to Long D9 if you haul two kids or bigger loads — the extra $600 buys 88 more lbs of max load and a stronger motor.',
+    },
+  },
 }
 
 /**
