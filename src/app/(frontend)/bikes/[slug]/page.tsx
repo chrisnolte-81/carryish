@@ -314,6 +314,40 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
     ['Included accessories', product.includedAccessories],
   ])
 
+  // Map component detail images to the spec section they illustrate
+  const componentToSection: Record<string, string> = {
+    motor: 'Motor & Power',
+    battery: 'Battery & Range',
+    display: 'Motor & Power',
+    brakes: 'Drivetrain & Brakes',
+    drivetrain: 'Drivetrain & Brakes',
+    suspension: 'Wheels & Comfort',
+    wheels: 'Wheels & Comfort',
+    rack: 'Cargo & Family',
+    'child-seat': 'Cargo & Family',
+    kickstand: 'Extras',
+    lights: 'Safety & Security',
+    lock: 'Safety & Security',
+    fold: 'Size & Weight',
+    cockpit: 'Extras',
+    seat: 'Extras',
+    other: 'Extras',
+  }
+
+  type ComponentDetail = { image: MediaType; caption?: string | null; component?: string | null }
+  const componentDetails = (product.gallery?.componentDetails || []).filter(
+    (entry): entry is ComponentDetail & { id?: string | null } =>
+      typeof entry.image === 'object' && entry.image !== null,
+  )
+
+  const detailsBySection: Record<string, ComponentDetail[]> = {}
+  for (const d of componentDetails) {
+    const section = d.component ? componentToSection[d.component] : undefined
+    if (!section) continue
+    if (!detailsBySection[section]) detailsBySection[section] = []
+    detailsBySection[section].push(d)
+  }
+
   const specSections = [
     { title: 'Motor & Power', specs: motorSpecs },
     { title: 'Battery & Range', specs: batterySpecs },
@@ -374,6 +408,17 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           <Link href="/" className="hover:text-[#1A1A2E] no-underline transition-colors">Home</Link>
           <span className="mx-2">/</span>
           <Link href="/bikes" className="hover:text-[#1A1A2E] no-underline transition-colors">Bikes</Link>
+          {product.modelFamily && brand && (
+            <>
+              <span className="mx-2">/</span>
+              <Link
+                href={`/bikes/models/${brand.slug}-${product.modelFamily.toLowerCase().replace(/\s+/g, '-')}`}
+                className="hover:text-[#1A1A2E] no-underline transition-colors"
+              >
+                {brand.name} {product.modelFamily}
+              </Link>
+            </>
+          )}
           <span className="mx-2">/</span>
           <span className="text-[#1A1A2E]">{product.name}</span>
         </nav>
@@ -741,6 +786,42 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           </div>
         )}
 
+        {/* ─── In the wild (dedicated lifestyle section) ─── */}
+        {(() => {
+          const lifestyleDocs = (product.gallery?.lifestyleImages || []).filter(
+            (entry): entry is { image: MediaType; caption?: string | null; context?: string | null; id?: string | null } =>
+              typeof entry.image === 'object' && entry.image !== null,
+          )
+          if (lifestyleDocs.length === 0) return null
+          return (
+            <div className="mt-20" id="in-the-wild">
+              <div className="flex items-baseline justify-between mb-6 flex-wrap gap-2">
+                <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E]">
+                  In the wild
+                </h2>
+                <p className="text-sm text-[#7A7A8C]">
+                  How it actually gets used.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {lifestyleDocs.slice(0, 6).map((entry, i) => (
+                  <figure
+                    key={i}
+                    className="relative overflow-hidden rounded-[10px] bg-[#E8E8EC] aspect-[4/3]"
+                  >
+                    <Media resource={entry.image} imgClassName="object-cover w-full h-full" />
+                    {entry.caption && (
+                      <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#1A1A2E]/80 to-transparent p-4 text-xs text-white font-medium">
+                        {entry.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ─── Verdict ─── */}
         {product.verdict && (
           <div className="mt-10 max-w-3xl">
@@ -797,21 +878,41 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               Full Specifications
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-              {specSections.map((section) => (
-                <div key={section.title}>
-                  <h3 className="text-sm uppercase tracking-wider text-[#7A7A8C] font-semibold mb-4 pb-2 border-b border-[#7A7A8C]/10">
-                    {section.title}
-                  </h3>
-                  <dl className="space-y-3">
-                    {section.specs.map((spec) => (
-                      <div key={spec.label} className="flex justify-between gap-4">
-                        <dt className="text-sm text-[#7A7A8C]">{spec.label}</dt>
-                        <dd className="text-sm font-medium text-[#1A1A2E] text-right">{spec.value}</dd>
+              {specSections.map((section) => {
+                const details = detailsBySection[section.title] || []
+                return (
+                  <div key={section.title}>
+                    <h3 className="text-sm uppercase tracking-wider text-[#7A7A8C] font-semibold mb-4 pb-2 border-b border-[#7A7A8C]/10">
+                      {section.title}
+                    </h3>
+                    {details.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2 mb-4">
+                        {details.slice(0, 2).map((d, i) => (
+                          <figure
+                            key={i}
+                            className="relative aspect-square rounded-[8px] overflow-hidden bg-[#E8E8EC]"
+                          >
+                            <Media resource={d.image} imgClassName="object-cover w-full h-full" />
+                            {d.caption && (
+                              <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#1A1A2E]/80 to-transparent p-2 text-[10px] text-white font-medium leading-tight">
+                                {d.caption}
+                              </figcaption>
+                            )}
+                          </figure>
+                        ))}
                       </div>
-                    ))}
-                  </dl>
-                </div>
-              ))}
+                    )}
+                    <dl className="space-y-3">
+                      {section.specs.map((spec) => (
+                        <div key={spec.label} className="flex justify-between gap-4">
+                          <dt className="text-sm text-[#7A7A8C]">{spec.label}</dt>
+                          <dd className="text-sm font-medium text-[#1A1A2E] text-right">{spec.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
