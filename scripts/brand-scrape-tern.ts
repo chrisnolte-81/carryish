@@ -469,28 +469,51 @@ function extractOgImage(html: string, baseUrl: string): string | null {
   return absoluteUrl(baseUrl, match[1])
 }
 
+/**
+ * Drupal on ternbicycles.com generates thumbnails at
+ *   /sites/default/files/styles/<style>/public/YYYY-MM/foo.jpg.webp?itok=…
+ * The true original sits at
+ *   /sites/default/files/YYYY-MM/foo.jpg
+ * This rewrites any styled URL back to the original so we get a full-res
+ * download instead of a 480×320 thumbnail.
+ */
+function rewriteDrupalStyle(url: string): string {
+  let u = url
+  // strip ?itok= query string
+  u = u.replace(/\?itok=[^&]*(&|$)/, '$1').replace(/\?$/, '')
+  // drop /styles/<style>/public/ from the path
+  u = u.replace(/\/sites\/default\/files\/styles\/[^/]+\/public\//, '/sites/default/files/')
+  // Drupal's webp derivative pattern: foo.jpg.webp → foo.jpg
+  u = u.replace(/\.(jpe?g|png)\.webp$/i, '.$1')
+  return u
+}
+
 function extractAllImages(html: string, baseUrl: string): string[] {
   const urls = new Set<string>()
 
+  const push = (raw: string) => {
+    urls.add(rewriteDrupalStyle(absoluteUrl(baseUrl, raw)))
+  }
+
+  // <a href="…"> — Tern gallery "click to open" links are usually full-res
+  const aHrefRe = /<a[^>]+href=["']([^"']+\.(?:jpe?g|png|webp)(?:\.webp)?(?:\?[^"']*)?)["']/gi
+  let m: RegExpExecArray | null
+  while ((m = aHrefRe.exec(html)) !== null) push(m[1])
+
   // <img src="…">
   const imgRe = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi
-  let m: RegExpExecArray | null
-  while ((m = imgRe.exec(html)) !== null) {
-    urls.add(absoluteUrl(baseUrl, m[1]))
-  }
+  while ((m = imgRe.exec(html)) !== null) push(m[1])
 
   // <img data-src="…">
   const dataSrcRe = /<img[^>]+data-src=["']([^"']+)["'][^>]*>/gi
-  while ((m = dataSrcRe.exec(html)) !== null) {
-    urls.add(absoluteUrl(baseUrl, m[1]))
-  }
+  while ((m = dataSrcRe.exec(html)) !== null) push(m[1])
 
   // srcset — take the largest from each
   const srcsetRe = /srcset=["']([^"']+)["']/gi
   while ((m = srcsetRe.exec(html)) !== null) {
     const parts = m[1].split(',')
     const last = parts[parts.length - 1]?.trim().split(/\s+/)[0]
-    if (last) urls.add(absoluteUrl(baseUrl, last))
+    if (last) push(last)
   }
 
   return [...urls].filter(
@@ -509,15 +532,17 @@ interface ChosenImages {
 
 function chooseImages(html: string, baseUrl: string): ChosenImages {
   const ogImage = extractOgImage(html, baseUrl)
-  const all = extractAllImages(html, baseUrl)
+  const all = extractAllImages(html, baseUrl).map((u) => rewriteDrupalStyle(u))
 
   // Tern's product pages have a clean side-profile as the og:image.
   // Fall back to the first gallery image if og:image is missing.
-  const hero = ogImage || all[0] || null
+  const hero = (ogImage ? rewriteDrupalStyle(ogImage) : null) || all[0] || null
 
-  // Lifestyle candidates: everything else, de-duped, skip the hero URL.
-  // Take up to 3. We don't try to vision-score these — Tern's content is
-  // consistently good and we'd rather keep the loop fast.
+  // Lifestyle candidates: dedupe by exact URL only. The Drupal rewrite
+  // already collapses the same image across different thumbnail styles to
+  // one canonical original URL. We want variety, so we don't collapse
+  // different color variants — the editor can pick the ones they like.
+  // Take up to 3.
   const seen = new Set<string>()
   if (hero) seen.add(hero)
   const lifestyle: string[] = []
@@ -536,7 +561,7 @@ function chooseImages(html: string, baseUrl: string): ChosenImages {
 function extractSpecSections(markdown: string): string {
   const lines = markdown.split('\n')
   const specKeywords =
-    /spec|motor|battery|weight|torque|watt|range|class|speed|brakes?|drivetrain|gears?|wheel|tire|frame|capacity|dimension|height|foldable|display|suspension|charge|voltage|amp|cargo|rider|warranty|fold|elevator|child|passenger|rack|abs|light/i
+    /spec|motor|battery|weight|torque|watt|range|class|speed|brakes?|drivetrain|gears?|wheel|tire|frame|capacity|dimension|height|foldable|display|suspension|charge|voltage|amp|cargo|rider|warranty|fold|elevator|child|passenger|rack|abs|light|price|msrp|\$[0-9]|usd/i
   const boilerKeywords =
     /cookie|privacy|gdpr|analytics|tracking|consent|wishlist|newsletter|subscribe|footer|copyright|terms of service/i
 
@@ -623,6 +648,119 @@ const EXTRACT_SPECS_TOOL = {
   },
 } as const
 
+/**
+ * Claude occasionally returns placeholders like "<UNKNOWN>" or "N/A" for
+ * fields it can't find, even when told to omit them. Coerce numeric fields,
+ * drop placeholder strings, and keep only known keys.
+ */
+const NUMBER_KEYS: ReadonlyArray<keyof ExtractedSpecs> = [
+  'price',
+  'weightLbs',
+  'maxSystemWeightLbs',
+  'cargoCapacityLbs',
+  'motorTorqueNm',
+  'motorNominalWatts',
+  'batteryWh',
+  'dualBatteryWh',
+  'statedRangeMi',
+  'numberOfGears',
+  'maxChildPassengers',
+  'warrantyYears',
+]
+const STRING_KEYS: ReadonlyArray<keyof ExtractedSpecs> = [
+  'motorBrand',
+  'batteryBrand',
+  'drivetrainBrand',
+  'brakeBrand',
+  'frontWheelSize',
+  'rearWheelSize',
+  'riderHeightMin',
+  'riderHeightMax',
+  'display',
+  'childSeatCompatibility',
+  'rackSystem',
+]
+const BOOL_KEYS: ReadonlyArray<keyof ExtractedSpecs> = [
+  'dualBatteryCapable',
+  'foldable',
+  'fitsInElevator',
+  'integratedLights',
+  'absAvailable',
+  'hasFootboards',
+  'hasWheelGuards',
+]
+const PLACEHOLDER_RE = /^(unknown|n\/a|none|tbd|tba|varies|--|-)$/i
+
+function isPlaceholder(v: unknown): boolean {
+  if (v == null) return true
+  if (typeof v !== 'string') return false
+  const s = v.replace(/[<>]/g, '').trim()
+  return s.length === 0 || PLACEHOLDER_RE.test(s)
+}
+
+function normalizeSpecs(raw: Record<string, unknown>): ExtractedSpecs {
+  const out: ExtractedSpecs = {}
+  for (const key of NUMBER_KEYS) {
+    const v = raw[key]
+    if (isPlaceholder(v)) continue
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      ;(out as Record<string, unknown>)[key] = v
+    } else if (typeof v === 'string') {
+      const cleaned = v.replace(/[$,]/g, '').trim()
+      const n = Number(cleaned)
+      if (Number.isFinite(n)) (out as Record<string, unknown>)[key] = n
+    }
+  }
+  for (const key of STRING_KEYS) {
+    const v = raw[key]
+    if (isPlaceholder(v)) continue
+    if (typeof v === 'string' && v.trim().length > 0) {
+      ;(out as Record<string, unknown>)[key] = v.trim()
+    }
+  }
+  for (const key of BOOL_KEYS) {
+    const v = raw[key]
+    if (typeof v === 'boolean') (out as Record<string, unknown>)[key] = v
+  }
+  // enum-constrained strings
+  if (raw.drivetrainType === 'chain' || raw.drivetrainType === 'belt') {
+    out.drivetrainType = raw.drivetrainType
+  }
+  if (
+    raw.gearType === 'derailleur' ||
+    raw.gearType === 'internal-hub' ||
+    raw.gearType === 'cvp'
+  ) {
+    out.gearType = raw.gearType
+  }
+  if (
+    raw.suspensionType === 'rigid' ||
+    raw.suspensionType === 'front' ||
+    raw.suspensionType === 'full' ||
+    raw.suspensionType === 'seatpost'
+  ) {
+    out.suspensionType = raw.suspensionType
+  }
+  // press quotes
+  if (Array.isArray(raw.pressQuotes)) {
+    const quotes: Array<{ quote: string; source: string; url?: string }> = []
+    for (const q of raw.pressQuotes as unknown[]) {
+      if (q && typeof q === 'object') {
+        const qo = q as Record<string, unknown>
+        if (typeof qo.quote === 'string' && typeof qo.source === 'string') {
+          quotes.push({
+            quote: qo.quote,
+            source: qo.source,
+            url: typeof qo.url === 'string' ? qo.url : undefined,
+          })
+        }
+      }
+    }
+    if (quotes.length) out.pressQuotes = quotes
+  }
+  return out
+}
+
 async function extractSpecs(
   anthropic: Anthropic,
   model: TernModel,
@@ -658,7 +796,7 @@ Call the record_tern_specs tool with ONLY the fields you can confidently extract
         warn('  Claude returned no tool_use block')
         return {}
       }
-      return toolUse.input as ExtractedSpecs
+      return normalizeSpecs(toolUse.input as Record<string, unknown>)
     } catch (err: unknown) {
       const errObj = err as { error?: { type?: string } }
       if (errObj?.error?.type === 'rate_limit_error' && retries < 2) {
@@ -878,20 +1016,24 @@ function familyDefaults(model: TernModel): Record<string, unknown> {
 
 // ─── Image processing ───
 
-function runPython(script: string, argv: string[]): Promise<void> {
+function runPython(script: string, argv: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(VENV_PY, [path.join(PY_DIR, script), ...argv], {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
+    let stdout = ''
     let stderr = ''
-    child.stdout.on('data', (d) => process.stdout.write(`    ${d}`))
+    child.stdout.on('data', (d) => {
+      stdout += d
+      process.stdout.write(`    ${d}`)
+    })
     child.stderr.on('data', (d) => {
       stderr += d
       process.stderr.write(`    ${d}`)
     })
     child.on('error', reject)
     child.on('close', (code) => {
-      if (code === 0) resolve()
+      if (code === 0) resolve(stdout)
       else reject(new Error(`${script} exited with code ${code}: ${stderr}`))
     })
   })
@@ -990,11 +1132,22 @@ async function processLifestyle(
     }
 
     const outPath = path.join(tmp, `${model.slug}-life-${idx}.webp`)
+    let pyOutput = ''
     try {
-      await runPython('resize-lifestyle.py', [rawPath, outPath])
+      pyOutput = await runPython('resize-lifestyle.py', [rawPath, outPath])
     } catch (err) {
       warn(`    resize failed: ${(err as Error).message}`)
       continue
+    }
+    // resize-lifestyle.py prints "ok WxH /path" — parse width and skip tiny ones
+    const dimMatch = pyOutput.match(/ok\s+(\d+)x(\d+)/)
+    if (dimMatch) {
+      const w = parseInt(dimMatch[1], 10)
+      const h = parseInt(dimMatch[2], 10)
+      if (w < 800 && h < 800) {
+        warn(`    too small (${w}x${h}), skipping lifestyle ${idx}`)
+        continue
+      }
     }
 
     if (FLAG_DRY_RUN) {
@@ -1138,7 +1291,11 @@ async function processModel(
   let lifestyleMediaIds: number[] = []
   if (!FLAG_SKIP_IMAGES && lifestyleUrls.length > 0) {
     lifestyleMediaIds = await processLifestyle(model, lifestyleUrls, tmp, token)
-    result.lifestyle = lifestyleMediaIds.filter((id) => id > 0).length
+    // In dry-run we want the summary to reflect "how many would have shipped"
+    // not "how many were actually uploaded" (which is always 0 in dry-run).
+    result.lifestyle = FLAG_DRY_RUN
+      ? lifestyleUrls.length
+      : lifestyleMediaIds.filter((id) => id > 0).length
   }
 
   // Look up existing product
@@ -1260,7 +1417,10 @@ function printSummary(results: PerModelResult[], deleted: string[]): void {
   )
   console.log('─'.repeat(72))
   for (const r of results) {
-    const price = r.price ? `$${r.price.toLocaleString()}` : '—'
+    const price =
+      typeof r.price === 'number' && Number.isFinite(r.price)
+        ? `$${r.price.toLocaleString()}`
+        : '—'
     console.log(
       `  ${r.name.padEnd(24)} | ${r.slug.padEnd(26)} | ${price.padEnd(7)} |  ${r.hero ? '✓' : '✗'}   |  ${r.lifestyle}   | ${r.status}`,
     )
