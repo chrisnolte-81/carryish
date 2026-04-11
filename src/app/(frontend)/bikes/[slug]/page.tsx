@@ -188,7 +188,11 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
       limit: 10,
       where: { product: { equals: product.id } },
     }),
-    // Fetch a broad pool of published products to pick the best alternatives from
+    // Fetch a broad pool of published products to pick the best alternatives from.
+    // NOTE: keep this narrowly selected — without `select`, Payload pulls every
+    // lateral-join array (colorOptions, componentDetails, lifestyleImages,
+    // certifications, keyAccessories, etc.) for 50 products, which OOMs Neon
+    // during concurrent prerender.
     payload.find({
       collection: 'products',
       depth: 1,
@@ -197,6 +201,18 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
         _status: { equals: 'published' },
         slug: { not_equals: product.slug },
         category: { equals: product.category },
+      },
+      select: {
+        name: true,
+        slug: true,
+        brand: true,
+        images: true,
+        price: true,
+        cargoLayout: true,
+        motorBrand: true,
+        motorPosition: true,
+        batteryWh: true,
+        overallScore: true,
       },
     }),
   ])

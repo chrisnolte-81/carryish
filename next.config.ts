@@ -12,6 +12,15 @@ const NEXT_PUBLIC_SERVER_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   : process.env.__NEXT_PRIVATE_ORIGIN || 'http://localhost:3000'
 
 const nextConfig: NextConfig = {
+  // Limit static generation concurrency. Neon (serverless Postgres) has a small
+  // per-connection executor memory budget. Running 7 prerender workers in
+  // parallel against heavy Payload lateral-join queries (products with nested
+  // arrays like colorOptions, componentDetails, lifestyleImages, etc.) was
+  // blowing Neon's ExecutorState memory and failing the build. Using 2 workers
+  // keeps the build fast without overloading the database.
+  experimental: {
+    cpus: 2,
+  },
   images: {
     localPatterns: [
       {

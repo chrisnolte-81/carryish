@@ -10,23 +10,6 @@ import PageClient from './page.client'
 export const dynamic = 'force-static'
 export const revalidate = 600
 
-function countWords(node: any): number {
-  if (!node) return 0
-  if (node.type === 'text' && typeof node.text === 'string') {
-    return node.text.split(/\s+/).filter(Boolean).length
-  }
-  if (Array.isArray(node.children)) {
-    return node.children.reduce((sum: number, child: any) => sum + countWords(child), 0)
-  }
-  if (node.root) return countWords(node.root)
-  return 0
-}
-
-function readTime(wordCount: number): string {
-  const minutes = Math.max(1, Math.ceil(wordCount / 200))
-  return `${minutes} min read`
-}
-
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'long',
@@ -49,7 +32,6 @@ export default async function Page() {
       categories: true,
       meta: true,
       publishedAt: true,
-      content: true,
       heroImage: true,
     },
   })
@@ -71,7 +53,6 @@ export default async function Page() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {posts.docs.map((post) => {
-                const words = countWords(post.content)
                 const heroImage = post.heroImage
                 const hasImage = heroImage && typeof heroImage === 'object' && heroImage.url
 
@@ -100,17 +81,13 @@ export default async function Page() {
                       </div>
 
                       <div className="p-5 flex flex-col flex-1">
-                        {/* Date + read time */}
+                        {/* Date */}
                         <div className="flex items-center gap-2 text-xs text-[#7A7A8C] mb-3">
                           {post.publishedAt && (
                             <time dateTime={post.publishedAt}>
                               {formatDate(post.publishedAt)}
                             </time>
                           )}
-                          {post.publishedAt && words > 0 && (
-                            <span className="text-[#7A7A8C]/40">&middot;</span>
-                          )}
-                          {words > 0 && <span>{readTime(words)}</span>}
                         </div>
 
                         {/* Title */}

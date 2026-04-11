@@ -47,6 +47,11 @@ export async function generateStaticParams() {
     overrideAccess: false,
     pagination: false,
     where: { modelFamily: { exists: true } },
+    // Only need brand + modelFamily to build slugs; skip heavy lateral joins
+    select: {
+      brand: true,
+      modelFamily: true,
+    },
   })
 
   const seen = new Set<string>()
