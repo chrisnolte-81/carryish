@@ -93,7 +93,7 @@ export default function HomePage() {
               name="Tern GSD S10"
               slug="tern-gsd-s10"
               brand="Tern"
-              price={5300}
+              price={7999}
               take="Fits in an elevator. Hauls two kids and a Costco run. The Bosch Cargo Line motor means hills with a full load aren't a problem."
               pick
             />
