@@ -592,6 +592,41 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           </div>
         )}
 
+        {/* ─── In the Wild (lifestyle images) ─── */}
+        {product.lifestyleImages && product.lifestyleImages.length > 0 && (() => {
+          const lifestyle = product.lifestyleImages.filter(
+            (entry): entry is { image: MediaType; caption?: string | null; context?: string | null; id?: string | null } =>
+              typeof entry.image === 'object' && entry.image !== null,
+          )
+          if (lifestyle.length === 0) return null
+          return (
+            <div className="mt-20">
+              <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6 max-w-3xl">
+                In the wild
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                {lifestyle.map((entry, i) => (
+                  <figure
+                    key={entry.id || i}
+                    className="relative aspect-[4/3] w-full bg-[#E8E0D4] rounded-[10px] overflow-hidden border border-[#7A7A8C]/15"
+                  >
+                    <Media
+                      resource={entry.image}
+                      imgClassName="object-cover w-full h-full"
+                      alt={entry.caption || `${product.name} — lifestyle photo`}
+                    />
+                    {entry.caption && (
+                      <figcaption className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent text-white text-xs px-3 py-2">
+                        {entry.caption}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ─── Verdict ─── */}
         {product.verdict && (
           <div className="mt-10 max-w-3xl">
