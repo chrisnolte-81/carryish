@@ -131,6 +131,8 @@ function pickSimilar(
   return scored.slice(0, count).map((s) => s.product)
 }
 
+export const revalidate = 3600
+
 export async function generateStaticParams() {
   const payload = await getPayload({ config: configPromise })
   const products = await payload.find({

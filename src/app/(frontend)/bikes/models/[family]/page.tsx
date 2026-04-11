@@ -98,6 +98,8 @@ function variantCardTags(p: Product): Array<{ label: string; highlight?: boolean
   return tags
 }
 
+export const revalidate = 3600
+
 /**
  * Family slugs look like "{brand-slug}-{model-family-lowercase}".
  * E.g. "tern-gsd", "tern-hsd", "urban-arrow-family".
