@@ -824,6 +824,22 @@ export interface Brand {
 export interface Product {
   id: number;
   name: string;
+  /**
+   * One evocative line. e.g. "The do-everything longtail that folds to fit in a closet"
+   */
+  subtitle?: string | null;
+  /**
+   * Model generation or year. e.g. "Gen 3", "2026", "V4"
+   */
+  generation?: string | null;
+  /**
+   * Groups variants. e.g. "GSD" for GSD S10, GSD R14, GSD P00
+   */
+  modelFamily?: string | null;
+  /**
+   * Uncheck if discontinued or out of stock everywhere
+   */
+  currentlyAvailable?: boolean | null;
   images?: (number | Media)[] | null;
   carryishTake?: {
     root: {
@@ -904,16 +920,75 @@ export interface Product {
       }[]
     | null;
   /**
-   * 2-3 non-hero photos: kids riding, cargo hauling, city use
+   * Each color variant with its own hero and 3/4 angle shot.
    */
-  lifestyleImages?:
+  colorOptions?:
     | {
-        image: number | Media;
-        caption?: string | null;
-        context?: ('kids' | 'cargo' | 'commute' | 'adventure' | 'lifestyle') | null;
+        /**
+         * e.g. "Beetle Green", "Matte Black"
+         */
+        colorName: string;
+        /**
+         * e.g. "#2D5A3D" — used for swatch display
+         */
+        colorHex?: string | null;
+        /**
+         * Side-profile on Canvas background (1600×1067)
+         */
+        heroImage?: (number | null) | Media;
+        /**
+         * 3/4 angle shot (1600×1067)
+         */
+        angleImage?: (number | null) | Media;
         id?: string | null;
       }[]
     | null;
+  gallery?: {
+    /**
+     * Close-ups of motor, brakes, display, folding mechanism, rack, etc. (1200×1200)
+     */
+    componentDetails?:
+      | {
+          image: number | Media;
+          component?:
+            | (
+                | 'motor'
+                | 'battery'
+                | 'display'
+                | 'brakes'
+                | 'drivetrain'
+                | 'suspension'
+                | 'rack'
+                | 'kickstand'
+                | 'lights'
+                | 'fold'
+                | 'lock'
+                | 'wheels'
+                | 'cockpit'
+                | 'seat'
+                | 'child-seat'
+                | 'other'
+              )
+            | null;
+          /**
+           * Short description for alt text and captions
+           */
+          caption?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    /**
+     * 2-4 real-world photos: kids riding, cargo loaded, city scenes.
+     */
+    lifestyleImages?:
+      | {
+          image: number | Media;
+          context?: ('kids' | 'cargo' | 'commute' | 'adventure' | 'lifestyle') | null;
+          caption?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
   /**
    * Overall Carryish score (1-10)
    */
@@ -1070,9 +1145,51 @@ export interface Product {
   alarm?: boolean | null;
   lockingKickstand?: boolean | null;
   /**
+   * DIN 79010, UL 2849, EN 15194, etc.
+   */
+  certifications?:
+    | {
+        name: string;
+        description?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
    * What comes in the box
    */
   includedAccessories?: string | null;
+  /**
+   * Named accessories specific to this bike (child seats, panniers, rain covers, etc.)
+   */
+  keyAccessories?:
+    | {
+        name: string;
+        /**
+         * Price in USD
+         */
+        price?: number | null;
+        description?: string | null;
+        category?:
+          | (
+              | 'child-seat'
+              | 'pannier'
+              | 'rack'
+              | 'rain-cover'
+              | 'running-board'
+              | 'safety-rail'
+              | 'lock'
+              | 'trailer-hitch'
+              | 'battery'
+              | 'other'
+            )
+          | null;
+        /**
+         * Ships with the bike (not a paid add-on)
+         */
+        included?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
   kickstandType?: ('single' | 'double-leg' | 'none') | null;
   fenders?: boolean | null;
   /**
@@ -1126,6 +1243,10 @@ export interface Product {
    */
   powerType?: ('electric' | 'non-electric' | 'pedal-assist') | null;
   affiliateUrl: string;
+  /**
+   * Other variants of the same model (e.g. GSD S10 ↔ GSD R14 ↔ GSD P00)
+   */
+  variants?: (number | Product)[] | null;
   /**
    * Direct competitor products (same type, similar price)
    */
@@ -1859,6 +1980,10 @@ export interface BrandsSelect<T extends boolean = true> {
  */
 export interface ProductsSelect<T extends boolean = true> {
   name?: T;
+  subtitle?: T;
+  generation?: T;
+  modelFamily?: T;
+  currentlyAvailable?: T;
   images?: T;
   carryishTake?: T;
   testingStatus?: T;
@@ -1897,13 +2022,34 @@ export interface ProductsSelect<T extends boolean = true> {
         answer?: T;
         id?: T;
       };
-  lifestyleImages?:
+  colorOptions?:
     | T
     | {
-        image?: T;
-        caption?: T;
-        context?: T;
+        colorName?: T;
+        colorHex?: T;
+        heroImage?: T;
+        angleImage?: T;
         id?: T;
+      };
+  gallery?:
+    | T
+    | {
+        componentDetails?:
+          | T
+          | {
+              image?: T;
+              component?: T;
+              caption?: T;
+              id?: T;
+            };
+        lifestyleImages?:
+          | T
+          | {
+              image?: T;
+              context?: T;
+              caption?: T;
+              id?: T;
+            };
       };
   overallScore?: T;
   hillScore?: T;
@@ -1976,7 +2122,24 @@ export interface ProductsSelect<T extends boolean = true> {
   gpsTracking?: T;
   alarm?: T;
   lockingKickstand?: T;
+  certifications?:
+    | T
+    | {
+        name?: T;
+        description?: T;
+        id?: T;
+      };
   includedAccessories?: T;
+  keyAccessories?:
+    | T
+    | {
+        name?: T;
+        price?: T;
+        description?: T;
+        category?: T;
+        included?: T;
+        id?: T;
+      };
   kickstandType?: T;
   fenders?: T;
   display?: T;
@@ -2006,6 +2169,7 @@ export interface ProductsSelect<T extends boolean = true> {
   category?: T;
   powerType?: T;
   affiliateUrl?: T;
+  variants?: T;
   directCompetitors?: T;
   cheaperAlternative?: T;
   premiumAlternative?: T;

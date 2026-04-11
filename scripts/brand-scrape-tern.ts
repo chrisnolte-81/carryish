@@ -1326,10 +1326,12 @@ async function processModel(
 
     const validLifestyle = lifestyleMediaIds.filter((id) => id > 0)
     if (validLifestyle.length > 0) {
-      body.lifestyleImages = validLifestyle.map((id) => ({
-        image: id,
-        context: 'lifestyle',
-      }))
+      body.gallery = {
+        lifestyleImages: validLifestyle.map((id) => ({
+          image: id,
+          context: 'lifestyle',
+        })),
+      }
     }
 
     if (FLAG_DRY_RUN) {
@@ -1383,10 +1385,12 @@ async function processModel(
 
   const validLifestyle = lifestyleMediaIds.filter((id) => id > 0)
   if (validLifestyle.length > 0) {
-    body.lifestyleImages = validLifestyle.map((id) => ({
-      image: id,
-      context: 'lifestyle',
-    }))
+    body.gallery = {
+      lifestyleImages: validLifestyle.map((id) => ({
+        image: id,
+        context: 'lifestyle',
+      })),
+    }
   }
 
   if (FLAG_DRY_RUN) {

@@ -1,39 +1,124 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import NextImage from 'next/image'
 import { cn } from '@/utilities/ui'
 import { getMediaUrl } from '@/utilities/getMediaUrl'
 import type { Media } from '@/payload-types'
 
+export interface GalleryDetailItem {
+  image: Media
+  caption?: string | null
+  component?: string | null
+}
+
+export interface GalleryLifestyleItem {
+  image: Media
+  caption?: string | null
+  context?: string | null
+}
+
+export interface GalleryColorOption {
+  colorName: string
+  colorHex?: string | null
+  heroImage?: Media | null
+  angleImage?: Media | null
+}
+
 interface ProductGalleryProps {
   images: Media[]
+  details?: GalleryDetailItem[]
+  lifestyle?: GalleryLifestyleItem[]
+  colorOptions?: GalleryColorOption[]
   brandName?: string
   productName: string
 }
 
+type TabKey = 'product' | 'details' | 'lifestyle'
+
+const TAB_LABELS: Record<TabKey, string> = {
+  product: 'Product',
+  details: 'Details',
+  lifestyle: 'In the wild',
+}
+
 export const ProductGallery: React.FC<ProductGalleryProps> = ({
   images,
+  details = [],
+  lifestyle = [],
+  colorOptions = [],
   brandName,
   productName,
 }) => {
+  // null = "All" / default (use product.images)
+  // number = selected color index (use that color's hero + angle)
+  const [selectedColorIndex, setSelectedColorIndex] = useState<number | null>(null)
+
+  // Only colors that actually have a hero image are usable
+  const usableColors = useMemo(
+    () => colorOptions.filter((c) => c.heroImage && typeof c.heroImage === 'object'),
+    [colorOptions],
+  )
+
+  // Build slides for each tab
+  const tabSlides = useMemo(() => {
+    // When a color is selected, product-tab slides come from that color's hero + angle
+    let product: { image: Media; caption?: string | null }[]
+    if (selectedColorIndex !== null && usableColors[selectedColorIndex]) {
+      const c = usableColors[selectedColorIndex]
+      const slides: { image: Media; caption?: string | null }[] = []
+      if (c.heroImage && typeof c.heroImage === 'object') {
+        slides.push({ image: c.heroImage, caption: `${c.colorName} — side profile` })
+      }
+      if (c.angleImage && typeof c.angleImage === 'object') {
+        slides.push({ image: c.angleImage, caption: `${c.colorName} — 3/4 angle` })
+      }
+      product = slides
+    } else {
+      product = images.map((img) => ({
+        image: img,
+        caption: img.alt || null,
+      }))
+    }
+    const detailSlides = details.map((d) => ({ image: d.image, caption: d.caption || null }))
+    const lifestyleSlides = lifestyle.map((l) => ({ image: l.image, caption: l.caption || null }))
+    return { product, details: detailSlides, lifestyle: lifestyleSlides }
+  }, [images, details, lifestyle, selectedColorIndex, usableColors])
+
+  const availableTabs = useMemo(() => {
+    const tabs: TabKey[] = []
+    if (tabSlides.product.length > 0) tabs.push('product')
+    if (tabSlides.details.length > 0) tabs.push('details')
+    if (tabSlides.lifestyle.length > 0) tabs.push('lifestyle')
+    return tabs
+  }, [tabSlides])
+
+  const [activeTab, setActiveTab] = useState<TabKey>(availableTabs[0] || 'product')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
 
-  const currentImage = images[selectedIndex]
+  const currentSlides = tabSlides[activeTab] || []
+  const currentSlide = currentSlides[selectedIndex]
+
+  // Reset index when tab changes
+  useEffect(() => {
+    setSelectedIndex(0)
+  }, [activeTab])
+
+  // Reset index when color changes (only affects product tab)
+  useEffect(() => {
+    if (activeTab === 'product') setSelectedIndex(0)
+  }, [selectedColorIndex, activeTab])
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (lightboxOpen) {
-        if (e.key === 'Escape') setLightboxOpen(false)
-        if (e.key === 'ArrowRight' && selectedIndex < images.length - 1)
-          setSelectedIndex((i) => i + 1)
-        if (e.key === 'ArrowLeft' && selectedIndex > 0)
-          setSelectedIndex((i) => i - 1)
-        return
-      }
+      if (!lightboxOpen) return
+      if (e.key === 'Escape') setLightboxOpen(false)
+      if (e.key === 'ArrowRight' && selectedIndex < currentSlides.length - 1)
+        setSelectedIndex((i) => i + 1)
+      if (e.key === 'ArrowLeft' && selectedIndex > 0) setSelectedIndex((i) => i - 1)
     },
-    [lightboxOpen, selectedIndex, images.length],
+    [lightboxOpen, selectedIndex, currentSlides.length],
   )
 
   useEffect(() => {
@@ -41,7 +126,6 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleKeyDown])
 
-  // Lock body scroll when lightbox is open
   useEffect(() => {
     if (lightboxOpen) {
       document.body.style.overflow = 'hidden'
@@ -53,7 +137,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
     }
   }, [lightboxOpen])
 
-  if (images.length === 0) {
+  if (availableTabs.length === 0) {
     return (
       <div className="aspect-[4/3] rounded-[10px] bg-[#E8E0D4] flex items-center justify-center">
         <div className="text-center px-4">
@@ -70,49 +154,139 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
 
   const getImageSrc = (img: Media) => getMediaUrl(img.url, img.updatedAt)
 
+  // Lifestyle tab uses object-cover + darker fallback background.
+  // Product + details use object-contain + Canvas background.
+  const isLifestyle = activeTab === 'lifestyle'
+  const mainImageClass = isLifestyle ? 'object-cover' : 'object-contain'
+  const frameBgClass = isLifestyle ? 'bg-[#E8E0D4]' : 'bg-[#FAFAF8]'
+
   return (
     <>
       <div className="space-y-3">
-        {/* Main image */}
-        <button
-          type="button"
-          onClick={() => setLightboxOpen(true)}
-          className="relative w-full aspect-[4/3] rounded-[10px] overflow-hidden bg-[#E8E0D4] cursor-zoom-in group"
-          aria-label={`View ${productName} fullscreen`}
-        >
-          <NextImage
-            src={getImageSrc(currentImage)}
-            alt={currentImage.alt || productName}
-            fill
-            className="object-contain transition-transform duration-300 group-hover:scale-[1.02]"
-            sizes="(max-width: 768px) 100vw, 50vw"
-            priority
-          />
-          {/* Zoom hint */}
-          <div className="absolute bottom-3 right-3 bg-[#1A1A2E]/60 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-            </svg>
-            Click to enlarge
+        {/* Color swatches */}
+        {usableColors.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-[#7A7A8C] uppercase tracking-wide mr-1">
+              Color:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedColorIndex(null)}
+              className={cn(
+                'text-xs font-medium px-2.5 py-1 rounded-full transition-colors',
+                selectedColorIndex === null
+                  ? 'bg-[#1A1A2E] text-white'
+                  : 'bg-[#E8E0D4]/60 text-[#7A7A8C] hover:text-[#1A1A2E]',
+              )}
+            >
+              All
+            </button>
+            {usableColors.map((c, i) => (
+              <button
+                key={`${c.colorName}-${i}`}
+                type="button"
+                onClick={() => setSelectedColorIndex(i)}
+                className={cn(
+                  'relative w-8 h-8 rounded-full border-2 transition-all',
+                  selectedColorIndex === i
+                    ? 'border-[#E85D3A] ring-2 ring-[#E85D3A]/20 ring-offset-2 ring-offset-[#FAFAF8] scale-110'
+                    : 'border-[#7A7A8C]/20 hover:border-[#1A1A2E]/40',
+                )}
+                style={{ backgroundColor: c.colorHex || '#E8E0D4' }}
+                aria-label={`Show ${c.colorName}`}
+                title={c.colorName}
+              />
+            ))}
+            {selectedColorIndex !== null && usableColors[selectedColorIndex] && (
+              <span className="text-xs text-[#1A1A2E] font-medium ml-1">
+                {usableColors[selectedColorIndex].colorName}
+              </span>
+            )}
           </div>
-          {/* Image counter */}
-          {images.length > 1 && (
-            <div className="absolute top-3 right-3 bg-[#1A1A2E]/60 text-white text-xs font-medium px-2 py-1 rounded-md">
-              {selectedIndex + 1} / {images.length}
+        )}
+
+        {/* Tab bar */}
+        {availableTabs.length > 1 && (
+          <div className="flex gap-1 border-b border-[#7A7A8C]/15">
+            {availableTabs.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  'relative px-4 py-2.5 text-sm font-medium transition-colors',
+                  activeTab === tab
+                    ? 'text-[#1A1A2E]'
+                    : 'text-[#7A7A8C] hover:text-[#1A1A2E]',
+                )}
+              >
+                {TAB_LABELS[tab]}
+                <span className="ml-1.5 text-xs text-[#7A7A8C]">
+                  {tabSlides[tab].length}
+                </span>
+                {activeTab === tab && (
+                  <span className="absolute bottom-[-1px] left-0 right-0 h-0.5 bg-[#E85D3A]" />
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Main image */}
+        {currentSlide && (
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(true)}
+            className={cn(
+              'relative w-full aspect-[4/3] rounded-[10px] overflow-hidden cursor-zoom-in group border border-[#7A7A8C]/10',
+              frameBgClass,
+            )}
+            aria-label={`View ${productName} fullscreen`}
+          >
+            <NextImage
+              src={getImageSrc(currentSlide.image)}
+              alt={currentSlide.caption || currentSlide.image.alt || productName}
+              fill
+              className={cn('transition-transform duration-300 group-hover:scale-[1.02]', mainImageClass)}
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority={activeTab === 'product'}
+            />
+
+            {/* Caption overlay for lifestyle + details */}
+            {currentSlide.caption && activeTab !== 'product' && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent text-white text-xs px-4 py-3 text-left">
+                {currentSlide.caption}
+              </div>
+            )}
+
+            {/* Zoom hint */}
+            <div className="absolute bottom-3 right-3 bg-[#1A1A2E]/70 text-white text-xs px-2.5 py-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+              Click to enlarge
             </div>
-          )}
-        </button>
+
+            {/* Image counter */}
+            {currentSlides.length > 1 && (
+              <div className="absolute top-3 right-3 bg-[#1A1A2E]/60 text-white text-xs font-medium px-2 py-1 rounded-md">
+                {selectedIndex + 1} / {currentSlides.length}
+              </div>
+            )}
+          </button>
+        )}
 
         {/* Thumbnail strip */}
-        {images.length > 1 && (
+        {currentSlides.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {images.map((img, i) => (
+            {currentSlides.map((slide, i) => (
               <button
-                key={img.id}
+                key={slide.image.id}
                 type="button"
                 onClick={() => setSelectedIndex(i)}
                 className={cn(
-                  'relative shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-[#E8E0D4] transition-all',
+                  'relative shrink-0 w-20 h-20 rounded-lg overflow-hidden transition-all',
+                  isLifestyle ? 'bg-[#E8E0D4]' : 'bg-[#FAFAF8] border border-[#7A7A8C]/10',
                   i === selectedIndex
                     ? 'ring-2 ring-[#E85D3A] ring-offset-2 ring-offset-[#FAFAF8]'
                     : 'opacity-60 hover:opacity-100',
@@ -120,10 +294,10 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
                 aria-label={`View image ${i + 1}`}
               >
                 <NextImage
-                  src={getImageSrc(img)}
-                  alt={img.alt || `${productName} image ${i + 1}`}
+                  src={getImageSrc(slide.image)}
+                  alt={slide.caption || slide.image.alt || `${productName} image ${i + 1}`}
                   fill
-                  className="object-contain"
+                  className={isLifestyle ? 'object-cover' : 'object-contain'}
                   sizes="80px"
                 />
               </button>
@@ -133,7 +307,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
       </div>
 
       {/* Lightbox */}
-      {lightboxOpen && (
+      {lightboxOpen && currentSlide && (
         <div
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
           onClick={() => setLightboxOpen(false)}
@@ -154,7 +328,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
           </button>
 
           {/* Prev/Next buttons */}
-          {images.length > 1 && (
+          {currentSlides.length > 1 && (
             <>
               {selectedIndex > 0 && (
                 <button
@@ -171,7 +345,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
                   </svg>
                 </button>
               )}
-              {selectedIndex < images.length - 1 && (
+              {selectedIndex < currentSlides.length - 1 && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -195,8 +369,8 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             <NextImage
-              src={getImageSrc(currentImage)}
-              alt={currentImage.alt || productName}
+              src={getImageSrc(currentSlide.image)}
+              alt={currentSlide.caption || currentSlide.image.alt || productName}
               fill
               className="object-contain"
               sizes="100vw"
@@ -204,12 +378,17 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
             />
           </div>
 
-          {/* Image counter */}
-          {images.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium">
-              {selectedIndex + 1} / {images.length}
-            </div>
-          )}
+          {/* Caption + counter */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/80 text-sm font-medium text-center max-w-2xl px-4">
+            {currentSlide.caption && (
+              <p className="mb-1 text-white">{currentSlide.caption}</p>
+            )}
+            {currentSlides.length > 1 && (
+              <p className="text-white/60 text-xs">
+                {selectedIndex + 1} / {currentSlides.length}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </>

@@ -56,7 +56,9 @@ async function repair(productId: number, slug: string, mediaIds: number[], token
   }
 
   const body = {
-    lifestyleImages: mediaIds.map((id) => ({ image: id, context: 'lifestyle' })),
+    gallery: {
+      lifestyleImages: mediaIds.map((id) => ({ image: id, context: 'lifestyle' })),
+    },
   }
 
   const res = await fetch(`${BASE_URL}/api/products/${productId}`, {
@@ -71,7 +73,9 @@ async function repair(productId: number, slug: string, mediaIds: number[], token
 
   // Re-fetch to confirm
   const got = await fetch(`${BASE_URL}/api/products/${productId}?depth=0`).then((r) => r.json())
-  const saved = Array.isArray(got.lifestyleImages) ? got.lifestyleImages.length : 0
+  const saved = Array.isArray(got?.gallery?.lifestyleImages)
+    ? got.gallery.lifestyleImages.length
+    : 0
   console.log(`  ✓ ${slug}: saved ${saved} lifestyle image(s)`)
 }
 

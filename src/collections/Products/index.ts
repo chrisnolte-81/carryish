@@ -46,6 +46,27 @@ export const Products: CollectionConfig<'products'> = {
           label: 'Content',
           fields: [
             {
+              name: 'subtitle',
+              type: 'text',
+              admin: { description: 'One evocative line. e.g. "The do-everything longtail that folds to fit in a closet"' },
+            },
+            {
+              name: 'generation',
+              type: 'text',
+              admin: { description: 'Model generation or year. e.g. "Gen 3", "2026", "V4"' },
+            },
+            {
+              name: 'modelFamily',
+              type: 'text',
+              admin: { description: 'Groups variants. e.g. "GSD" for GSD S10, GSD R14, GSD P00' },
+            },
+            {
+              name: 'currentlyAvailable',
+              type: 'checkbox',
+              defaultValue: true,
+              admin: { description: 'Uncheck if discontinued or out of stock everywhere' },
+            },
+            {
               name: 'images',
               type: 'upload',
               relationTo: 'media',
@@ -130,29 +151,107 @@ export const Products: CollectionConfig<'products'> = {
           ],
         },
 
-        // ─── Lifestyle Images ───
+        // ─── Colors ───
         {
-          label: 'Lifestyle Images',
+          label: 'Colors',
           fields: [
             {
-              name: 'lifestyleImages',
+              name: 'colorOptions',
               type: 'array',
-              label: 'Lifestyle Images',
-              admin: {
-                description: '2-3 non-hero photos: kids riding, cargo hauling, city use',
-              },
+              admin: { description: 'Each color variant with its own hero and 3/4 angle shot.' },
               fields: [
-                { name: 'image', type: 'upload', relationTo: 'media', required: true },
-                { name: 'caption', type: 'text' },
                 {
-                  name: 'context',
-                  type: 'select',
-                  options: [
-                    { label: 'Kids riding', value: 'kids' },
-                    { label: 'Cargo hauling', value: 'cargo' },
-                    { label: 'City commute', value: 'commute' },
-                    { label: 'Adventure', value: 'adventure' },
-                    { label: 'Lifestyle', value: 'lifestyle' },
+                  name: 'colorName',
+                  type: 'text',
+                  required: true,
+                  admin: { description: 'e.g. "Beetle Green", "Matte Black"' },
+                },
+                {
+                  name: 'colorHex',
+                  type: 'text',
+                  admin: { description: 'e.g. "#2D5A3D" — used for swatch display' },
+                },
+                {
+                  name: 'heroImage',
+                  type: 'upload',
+                  relationTo: 'media',
+                  admin: { description: 'Side-profile on Canvas background (1600×1067)' },
+                },
+                {
+                  name: 'angleImage',
+                  type: 'upload',
+                  relationTo: 'media',
+                  admin: { description: '3/4 angle shot (1600×1067)' },
+                },
+              ],
+            },
+          ],
+        },
+
+        // ─── Gallery ───
+        {
+          label: 'Gallery',
+          fields: [
+            {
+              name: 'gallery',
+              type: 'group',
+              label: 'Image Gallery',
+              fields: [
+                {
+                  name: 'componentDetails',
+                  type: 'array',
+                  label: 'Component Detail Shots',
+                  admin: { description: 'Close-ups of motor, brakes, display, folding mechanism, rack, etc. (1200×1200)' },
+                  fields: [
+                    { name: 'image', type: 'upload', relationTo: 'media', required: true },
+                    {
+                      name: 'component',
+                      type: 'select',
+                      options: [
+                        { label: 'Motor', value: 'motor' },
+                        { label: 'Battery', value: 'battery' },
+                        { label: 'Display / Controls', value: 'display' },
+                        { label: 'Brakes', value: 'brakes' },
+                        { label: 'Drivetrain', value: 'drivetrain' },
+                        { label: 'Suspension', value: 'suspension' },
+                        { label: 'Rack / Cargo', value: 'rack' },
+                        { label: 'Kickstand', value: 'kickstand' },
+                        { label: 'Lights', value: 'lights' },
+                        { label: 'Fold / Storage', value: 'fold' },
+                        { label: 'Lock / Security', value: 'lock' },
+                        { label: 'Wheels / Tires', value: 'wheels' },
+                        { label: 'Cockpit / Handlebars', value: 'cockpit' },
+                        { label: 'Seat / Seatpost', value: 'seat' },
+                        { label: 'Child Seat / Passenger', value: 'child-seat' },
+                        { label: 'Other', value: 'other' },
+                      ],
+                    },
+                    {
+                      name: 'caption',
+                      type: 'text',
+                      admin: { description: 'Short description for alt text and captions' },
+                    },
+                  ],
+                },
+                {
+                  name: 'lifestyleImages',
+                  type: 'array',
+                  label: 'Lifestyle / Action Shots',
+                  admin: { description: '2-4 real-world photos: kids riding, cargo loaded, city scenes.' },
+                  fields: [
+                    { name: 'image', type: 'upload', relationTo: 'media', required: true },
+                    {
+                      name: 'context',
+                      type: 'select',
+                      options: [
+                        { label: 'Kids / Family', value: 'kids' },
+                        { label: 'Cargo / Hauling', value: 'cargo' },
+                        { label: 'City Commute', value: 'commute' },
+                        { label: 'Adventure / Trail', value: 'adventure' },
+                        { label: 'Lifestyle', value: 'lifestyle' },
+                      ],
+                    },
+                    { name: 'caption', type: 'text' },
                   ],
                 },
               ],
@@ -371,6 +470,16 @@ export const Products: CollectionConfig<'products'> = {
             { name: 'gpsTracking', type: 'checkbox' },
             { name: 'alarm', type: 'checkbox' },
             { name: 'lockingKickstand', type: 'checkbox' },
+            {
+              name: 'certifications',
+              type: 'array',
+              label: 'Safety Certifications',
+              admin: { description: 'DIN 79010, UL 2849, EN 15194, etc.' },
+              fields: [
+                { name: 'name', type: 'text', required: true },
+                { name: 'description', type: 'text' },
+              ],
+            },
           ],
         },
 
@@ -379,6 +488,34 @@ export const Products: CollectionConfig<'products'> = {
           label: 'Extras',
           fields: [
             { name: 'includedAccessories', type: 'textarea', admin: { description: 'What comes in the box' } },
+            {
+              name: 'keyAccessories',
+              type: 'array',
+              label: 'Key Accessories',
+              admin: { description: 'Named accessories specific to this bike (child seats, panniers, rain covers, etc.)' },
+              fields: [
+                { name: 'name', type: 'text', required: true },
+                { name: 'price', type: 'number', admin: { description: 'Price in USD' } },
+                { name: 'description', type: 'text' },
+                {
+                  name: 'category',
+                  type: 'select',
+                  options: [
+                    { label: 'Child seat', value: 'child-seat' },
+                    { label: 'Pannier / Bag', value: 'pannier' },
+                    { label: 'Rack', value: 'rack' },
+                    { label: 'Rain cover', value: 'rain-cover' },
+                    { label: 'Running board / Footpeg', value: 'running-board' },
+                    { label: 'Safety rail', value: 'safety-rail' },
+                    { label: 'Lock', value: 'lock' },
+                    { label: 'Trailer hitch', value: 'trailer-hitch' },
+                    { label: 'Battery', value: 'battery' },
+                    { label: 'Other', value: 'other' },
+                  ],
+                },
+                { name: 'included', type: 'checkbox', admin: { description: 'Ships with the bike (not a paid add-on)' } },
+              ],
+            },
             {
               name: 'kickstandType',
               type: 'select',
@@ -479,6 +616,13 @@ export const Products: CollectionConfig<'products'> = {
               name: 'affiliateUrl',
               type: 'text',
               required: true,
+            },
+            {
+              name: 'variants',
+              type: 'relationship',
+              relationTo: 'products',
+              hasMany: true,
+              admin: { description: 'Other variants of the same model (e.g. GSD S10 ↔ GSD R14 ↔ GSD P00)' },
             },
             {
               name: 'directCompetitors',

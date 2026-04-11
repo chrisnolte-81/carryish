@@ -7,7 +7,12 @@ import React, { cache } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Media } from '@/components/Media'
-import { ProductGallery } from '@/components/ProductGallery'
+import {
+  ProductGallery,
+  type GalleryColorOption,
+  type GalleryDetailItem,
+  type GalleryLifestyleItem,
+} from '@/components/ProductGallery'
 import RichText from '@/components/RichText'
 import type { Product, Media as MediaType, ReviewSource, ProductVideo } from '@/payload-types'
 
@@ -381,6 +386,38 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               images={
                 (product.images?.filter((img): img is MediaType => typeof img === 'object' && img !== null) || [])
               }
+              details={
+                (product.gallery?.componentDetails || [])
+                  .filter(
+                    (entry): entry is GalleryDetailItem & { id?: string | null } =>
+                      typeof entry.image === 'object' && entry.image !== null,
+                  )
+                  .map((entry) => ({
+                    image: entry.image as MediaType,
+                    caption: entry.caption,
+                    component: entry.component,
+                  }))
+              }
+              lifestyle={
+                (product.gallery?.lifestyleImages || [])
+                  .filter(
+                    (entry): entry is GalleryLifestyleItem & { id?: string | null } =>
+                      typeof entry.image === 'object' && entry.image !== null,
+                  )
+                  .map((entry) => ({
+                    image: entry.image as MediaType,
+                    caption: entry.caption,
+                    context: entry.context,
+                  }))
+              }
+              colorOptions={
+                (product.colorOptions || []).map((c): GalleryColorOption => ({
+                  colorName: c.colorName,
+                  colorHex: c.colorHex,
+                  heroImage: typeof c.heroImage === 'object' ? (c.heroImage as MediaType) : null,
+                  angleImage: typeof c.angleImage === 'object' ? (c.angleImage as MediaType) : null,
+                }))
+              }
               brandName={brand?.name || undefined}
               productName={product.name}
             />
@@ -394,6 +431,11 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                   {categoryLabels[product.category] || product.category}
                 </span>
               )}
+              {product.generation && (
+                <span className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-2.5 py-1 rounded-md">
+                  {product.generation}
+                </span>
+              )}
               {product.testingStatus === 'tested' && (
                 <span className="text-xs font-semibold bg-[#E85D3A]/10 text-[#E85D3A] px-2.5 py-1 rounded-md">
                   Tested by Carryish
@@ -404,11 +446,22 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                   Non-electric
                 </span>
               )}
+              {product.currentlyAvailable === false && (
+                <span className="text-xs font-semibold bg-red-50 text-red-700 px-2.5 py-1 rounded-md">
+                  Discontinued
+                </span>
+              )}
             </div>
 
             <h1 className="font-[family-name:var(--font-fraunces)] text-3xl sm:text-4xl font-semibold text-[#1A1A2E] mt-3 tracking-tight">
               {product.name}
             </h1>
+
+            {product.subtitle && (
+              <p className="font-[family-name:var(--font-fraunces)] text-lg text-[#1A1A2E]/70 mt-2 leading-snug">
+                {product.subtitle}
+              </p>
+            )}
 
             {product.tagline && (
               <p className="text-base text-[#7A7A8C] mt-1.5 italic">{product.tagline}</p>
@@ -550,6 +603,102 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           </div>
         </div>
 
+        {/* ─── Variant comparison strip ─── */}
+        {product.variants && product.variants.length > 0 && (() => {
+          const variantDocs = product.variants.filter(
+            (v): v is Product => typeof v === 'object' && v !== null,
+          )
+          if (variantDocs.length === 0) return null
+
+          return (
+            <div className="mt-16 pt-10 border-t border-[#7A7A8C]/10">
+              <div className="flex items-baseline justify-between mb-6 flex-wrap gap-2">
+                <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E]">
+                  Other {product.modelFamily || 'variants'} in the lineup
+                </h2>
+                <p className="text-sm text-[#7A7A8C]">
+                  Same bones. Different trims, gearing, and price points.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {/* Current product card */}
+                <div className="relative bg-[#FAFAF8] border-2 border-[#E85D3A] rounded-[10px] overflow-hidden">
+                  <span className="absolute top-2 left-2 z-10 bg-[#E85D3A] text-white text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded">
+                    You are here
+                  </span>
+                  <div className="relative aspect-[4/3] w-full bg-[#FAFAF8]">
+                    {product.images && product.images.length > 0 && typeof product.images[0] === 'object' ? (
+                      <Media resource={product.images[0]} imgClassName="object-contain w-full h-full" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-[#1A1A2E]/40 text-xs">
+                        {product.name}
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-[family-name:var(--font-fraunces)] text-base font-semibold text-[#1A1A2E] leading-tight">
+                      {product.name}
+                    </h3>
+                    <div className="flex items-center justify-between mt-2">
+                      {product.price != null ? (
+                        <span className="text-sm font-semibold text-[#1A1A2E]">
+                          ${product.price.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span />
+                      )}
+                      {product.overallScore != null && (
+                        <span className="text-xs font-bold bg-[#1A1A2E] text-white px-1.5 py-0.5 rounded">
+                          {product.overallScore}/10
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {variantDocs.map((v) => {
+                  const vImage = v.images && v.images.length > 0 ? v.images[0] : null
+                  return (
+                    <Link
+                      key={v.id}
+                      href={`/bikes/${v.slug}`}
+                      className="group block bg-[#FAFAF8] border border-[#7A7A8C]/15 rounded-[10px] overflow-hidden hover:shadow-[0_4px_20px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-200 no-underline"
+                    >
+                      <div className="relative aspect-[4/3] w-full bg-[#FAFAF8]">
+                        {vImage && typeof vImage === 'object' ? (
+                          <Media resource={vImage} imgClassName="object-contain w-full h-full" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-[#1A1A2E]/40 text-xs px-2 text-center">
+                            {v.name}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-[family-name:var(--font-fraunces)] text-base font-semibold text-[#1A1A2E] group-hover:text-[#E85D3A] transition-colors leading-tight">
+                          {v.name}
+                        </h3>
+                        <div className="flex items-center justify-between mt-2">
+                          {v.price != null ? (
+                            <span className="text-sm font-semibold text-[#1A1A2E]">
+                              ${v.price.toLocaleString()}
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+                          {v.overallScore != null && (
+                            <span className="text-xs font-bold bg-[#1A1A2E]/80 text-white px-1.5 py-0.5 rounded">
+                              {v.overallScore}/10
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* ─── Carryish Scores ─── */}
         {hasScores && (
           <div className="mt-20 max-w-3xl" id="scores">
@@ -591,41 +740,6 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
             </div>
           </div>
         )}
-
-        {/* ─── In the Wild (lifestyle images) ─── */}
-        {product.lifestyleImages && product.lifestyleImages.length > 0 && (() => {
-          const lifestyle = product.lifestyleImages.filter(
-            (entry): entry is { image: MediaType; caption?: string | null; context?: string | null; id?: string | null } =>
-              typeof entry.image === 'object' && entry.image !== null,
-          )
-          if (lifestyle.length === 0) return null
-          return (
-            <div className="mt-20">
-              <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6 max-w-3xl">
-                In the wild
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                {lifestyle.map((entry, i) => (
-                  <figure
-                    key={entry.id || i}
-                    className="relative aspect-[4/3] w-full bg-[#E8E0D4] rounded-[10px] overflow-hidden border border-[#7A7A8C]/15"
-                  >
-                    <Media
-                      resource={entry.image}
-                      imgClassName="object-cover w-full h-full"
-                      alt={entry.caption || `${product.name} — lifestyle photo`}
-                    />
-                    {entry.caption && (
-                      <figcaption className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent text-white text-xs px-3 py-2">
-                        {entry.caption}
-                      </figcaption>
-                    )}
-                  </figure>
-                ))}
-              </div>
-            </div>
-          )
-        })()}
 
         {/* ─── Verdict ─── */}
         {product.verdict && (
@@ -698,6 +812,104 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                   </dl>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Safety Certifications ─── */}
+        {product.certifications && product.certifications.length > 0 && (
+          <div className="mt-20 max-w-3xl" id="certifications">
+            <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E] mb-6">
+              Safety certifications
+            </h2>
+            <div className="flex flex-wrap gap-3">
+              {product.certifications.map((cert, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-3 bg-[#3A8FE8]/5 border border-[#3A8FE8]/20 rounded-lg px-4 py-3 max-w-sm"
+                >
+                  <svg
+                    className="w-5 h-5 text-[#3A8FE8] shrink-0 mt-0.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-semibold text-[#1A1A2E]">{cert.name}</p>
+                    {cert.description && (
+                      <p className="text-xs text-[#7A7A8C] mt-0.5 leading-snug">{cert.description}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Key Accessories ─── */}
+        {product.keyAccessories && product.keyAccessories.length > 0 && (
+          <div className="mt-20" id="accessories">
+            <div className="flex items-baseline justify-between mb-6 flex-wrap gap-2">
+              <h2 className="font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#1A1A2E]">
+                Key accessories
+              </h2>
+              <p className="text-sm text-[#7A7A8C]">
+                What to budget for. Included items are marked.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {product.keyAccessories.map((acc, i) => {
+                const categoryLabel: Record<string, string> = {
+                  'child-seat': 'Child seat',
+                  pannier: 'Pannier / Bag',
+                  rack: 'Rack',
+                  'rain-cover': 'Rain cover',
+                  'running-board': 'Running board',
+                  'safety-rail': 'Safety rail',
+                  lock: 'Lock',
+                  'trailer-hitch': 'Trailer hitch',
+                  battery: 'Battery',
+                  other: 'Other',
+                }
+                return (
+                  <div
+                    key={i}
+                    className="border border-[#7A7A8C]/15 rounded-[10px] p-5 bg-[#FAFAF8]"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h3 className="text-base font-semibold text-[#1A1A2E] leading-tight">
+                          {acc.name}
+                        </h3>
+                        {acc.category && (
+                          <span className="text-[10px] uppercase tracking-wider text-[#7A7A8C] font-medium mt-1 inline-block">
+                            {categoryLabel[acc.category] || acc.category}
+                          </span>
+                        )}
+                      </div>
+                      {acc.included ? (
+                        <span className="text-[10px] font-semibold bg-green-100 text-green-800 px-2 py-0.5 rounded uppercase tracking-wider shrink-0">
+                          Included
+                        </span>
+                      ) : acc.price != null ? (
+                        <span className="text-sm font-semibold text-[#1A1A2E] shrink-0">
+                          ${acc.price.toLocaleString()}
+                        </span>
+                      ) : null}
+                    </div>
+                    {acc.description && (
+                      <p className="text-xs text-[#7A7A8C] leading-snug mt-2">{acc.description}</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
