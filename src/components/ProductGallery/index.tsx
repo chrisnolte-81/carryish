@@ -44,6 +44,51 @@ const TAB_LABELS: Record<TabKey, string> = {
   lifestyle: 'In the wild',
 }
 
+// Filename-based classifier. Studio shots (white canvas, clean product)
+// go to the Product tab; wild shots (people, outdoor, action) go to the
+// "In the wild" tab. Anything else falls through to 'product'.
+const LIFESTYLE_PATTERNS = [
+  /\blife\b/,
+  /lifestyle/,
+  /\bwild\b/,
+  /\baction\b/,
+  /\bride\b/,
+  /\bridden\b/,
+  /\brider\b/,
+  /urban/,
+  /family/,
+  /commute/,
+  /outdoor/,
+]
+
+const DETAIL_PATTERNS = [/\bdetail\b/, /\bdetails\b/, /\bcloseup\b/, /\bclose-up\b/]
+
+const STUDIO_PATTERNS = [
+  /\bstd\b/,
+  /\bhero\b/,
+  /\bangle\b/,
+  /\bprofile\b/,
+  /\bproduct\b/,
+  /\bstudio\b/,
+  /\bside\b/,
+]
+
+function classifyFilename(
+  filename: string | null | undefined,
+): 'product' | 'detail' | 'lifestyle' {
+  if (!filename) return 'product'
+  const f = filename.toLowerCase()
+  // Lifestyle first — any wild/life/action token wins even if 'std' appears.
+  if (LIFESTYLE_PATTERNS.some((re) => re.test(f))) return 'lifestyle'
+  if (DETAIL_PATTERNS.some((re) => re.test(f))) return 'detail'
+  if (STUDIO_PATTERNS.some((re) => re.test(f))) return 'product'
+  return 'product'
+}
+
+function classifyMedia(m: Media): 'product' | 'detail' | 'lifestyle' {
+  return classifyFilename(m.filename || m.url || '')
+}
+
 export const ProductGallery: React.FC<ProductGalleryProps> = ({
   images,
   details = [],
@@ -68,8 +113,28 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
 
   // Build slides for each tab
   const tabSlides = useMemo(() => {
+    // Partition the `images` prop by filename. Lifestyle shots
+    // accidentally mixed into the product gallery drop into the
+    // "In the wild" tab. Detail shots go to the Details tab.
+    const productFromImages: { image: Media; caption?: string | null }[] = []
+    const lifestyleFromImages: { image: Media; caption?: string | null }[] = []
+    const detailFromImages: { image: Media; caption?: string | null }[] = []
+    for (const img of images) {
+      const slide = { image: img, caption: img.alt || null }
+      switch (classifyMedia(img)) {
+        case 'lifestyle':
+          lifestyleFromImages.push(slide)
+          break
+        case 'detail':
+          detailFromImages.push(slide)
+          break
+        default:
+          productFromImages.push(slide)
+      }
+    }
+
     // When a color with per-color images is selected, swap in those slides.
-    // Otherwise fall back to the product's default images.
+    // Otherwise fall back to the product's filtered studio images.
     let product: { image: Media; caption?: string | null }[]
     const selectedColor =
       selectedColorIndex !== null ? usableColors[selectedColorIndex] : null
@@ -93,13 +158,36 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
       }
       product = slides
     } else {
-      product = images.map((img) => ({
-        image: img,
-        caption: img.alt || null,
-      }))
+      product = productFromImages
     }
-    const detailSlides = details.map((d) => ({ image: d.image, caption: d.caption || null }))
-    const lifestyleSlides = lifestyle.map((l) => ({ image: l.image, caption: l.caption || null }))
+
+    // Merge explicit details + detail-classified images from `images`,
+    // dedupe by image id (prefer explicit details which carry captions).
+    const detailsById = new Map<number | string, { image: Media; caption?: string | null }>()
+    for (const d of details) {
+      detailsById.set(d.image.id, { image: d.image, caption: d.caption || null })
+    }
+    for (const d of detailFromImages) {
+      if (!detailsById.has(d.image.id)) detailsById.set(d.image.id, d)
+    }
+    const detailSlides = Array.from(detailsById.values())
+
+    // Same merge strategy for lifestyle.
+    const lifestyleById = new Map<number | string, { image: Media; caption?: string | null }>()
+    for (const l of lifestyle) {
+      // Re-check filename: editor may have put a studio shot in the
+      // lifestyle array by mistake. If it classifies as product or
+      // detail, skip it here (it will appear in the correct tab via
+      // the `images` partition above, assuming it's also in `images`).
+      if (classifyMedia(l.image) === 'lifestyle') {
+        lifestyleById.set(l.image.id, { image: l.image, caption: l.caption || null })
+      }
+    }
+    for (const l of lifestyleFromImages) {
+      if (!lifestyleById.has(l.image.id)) lifestyleById.set(l.image.id, l)
+    }
+    const lifestyleSlides = Array.from(lifestyleById.values())
+
     return { product, details: detailSlides, lifestyle: lifestyleSlides }
   }, [images, details, lifestyle, selectedColorIndex, usableColors])
 
