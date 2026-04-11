@@ -36,6 +36,12 @@ export default async function BrandPage({ params: paramsPromise }: Args) {
     collection: 'products',
     depth: 1,
     limit: 50,
+    select: {
+      name: true,
+      slug: true,
+      price: true,
+      images: true,
+    },
     where: {
       _status: { equals: 'published' },
       brand: { equals: brand.id },
