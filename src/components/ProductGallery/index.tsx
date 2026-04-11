@@ -322,11 +322,11 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
                 type="button"
                 onClick={() => setSelectedIndex(i)}
                 className={cn(
-                  'relative shrink-0 w-20 h-20 rounded-lg overflow-hidden transition-all',
-                  isLifestyle ? 'bg-[#E8E0D4]' : 'bg-[#FAFAF8] border border-[#7A7A8C]/10',
+                  'relative shrink-0 w-16 h-12 rounded-md overflow-hidden transition-all border-2',
+                  isLifestyle ? 'bg-[#E8E0D4]' : 'bg-[#FAFAF8]',
                   i === selectedIndex
-                    ? 'ring-2 ring-[#E85D3A] ring-offset-2 ring-offset-[#FAFAF8]'
-                    : 'opacity-60 hover:opacity-100',
+                    ? 'border-[#E85D3A]'
+                    : 'border-[#E8E8EC] opacity-70 hover:opacity-100',
                 )}
                 aria-label={`View image ${i + 1}`}
               >
@@ -335,7 +335,7 @@ export const ProductGallery: React.FC<ProductGalleryProps> = ({
                   alt={slide.caption || slide.image.alt || `${productName} image ${i + 1}`}
                   fill
                   className={isLifestyle ? 'object-cover' : 'object-contain'}
-                  sizes="80px"
+                  sizes="64px"
                 />
               </button>
             ))}

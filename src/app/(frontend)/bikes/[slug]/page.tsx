@@ -561,15 +561,25 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
                 .filter(Boolean)
                 .join(' ')
               return (
-                <VariantBar
-                  currentSlug={product.slug || ''}
-                  currentName={product.name}
-                  currentPrice={product.price}
-                  currentDrivetrainSummary={currentDrivetrain || null}
-                  modelFamily={product.modelFamily}
-                  brandName={brand?.name || null}
-                  variants={variantDocs}
-                />
+                <>
+                  <VariantBar
+                    currentSlug={product.slug || ''}
+                    currentName={product.name}
+                    currentPrice={product.price}
+                    currentDrivetrainSummary={currentDrivetrain || null}
+                    modelFamily={product.modelFamily}
+                    brandName={brand?.name || null}
+                    variants={variantDocs}
+                  />
+                  {product.modelFamily && brand && (
+                    <Link
+                      href={`/bikes/models/${brand.slug}-${product.modelFamily.toLowerCase().replace(/\s+/g, '-')}`}
+                      className="mt-2 inline-block text-sm text-[#3A8FE8] hover:underline"
+                    >
+                      See all {brand.name} {product.modelFamily} models →
+                    </Link>
+                  )}
+                </>
               )
             })()}
 
@@ -612,45 +622,54 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
               If you buy through our links, we earn a small commission. It doesn&apos;t change what we recommend.
             </p>
 
-            {/* Quick specs grid */}
-            <div className="mt-6 grid grid-cols-3 gap-2">
-              {product.weightLbs != null && (
-                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
-                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.weightLbs}<span className="text-xs text-[#7A7A8C] ml-0.5">lbs</span></p>
-                  <p className="text-[11px] text-[#7A7A8C] mt-1">Weight</p>
+            {/* Quick specs grid — aim for 6 cells with fallbacks */}
+            {(() => {
+              type QS = { value: string; unit?: string; label: string }
+              const specs: QS[] = []
+              if (product.weightLbs != null)
+                specs.push({ value: String(product.weightLbs), unit: 'lbs', label: 'Weight' })
+              if (product.maxSystemWeightLbs != null)
+                specs.push({ value: String(product.maxSystemWeightLbs), unit: 'lbs', label: 'Max load' })
+              if (product.motorTorqueNm != null)
+                specs.push({ value: String(product.motorTorqueNm), unit: 'Nm', label: 'Torque' })
+              const realRange =
+                product.estimatedRealRangeMi != null
+                  ? product.estimatedRealRangeMi
+                  : product.statedRangeMi != null
+                  ? Math.round(product.statedRangeMi * 0.65)
+                  : null
+              if (realRange != null)
+                specs.push({ value: `~${realRange}`, unit: 'mi', label: 'Real range' })
+              if (product.batteryWh != null)
+                specs.push({ value: String(product.batteryWh), unit: 'Wh', label: 'Battery' })
+              if (product.maxChildPassengers != null && product.maxChildPassengers > 0)
+                specs.push({ value: String(product.maxChildPassengers), label: 'Passengers' })
+              // Fallbacks to reach 6 cells
+              if (specs.length < 6 && product.dualBatteryWh != null)
+                specs.push({ value: String(product.dualBatteryWh), unit: 'Wh', label: 'Dual battery' })
+              if (specs.length < 6 && product.foldable)
+                specs.push({ value: 'Yes', label: 'Foldable' })
+              if (specs.length < 6 && product.cargoCapacityLbs != null)
+                specs.push({ value: String(product.cargoCapacityLbs), unit: 'lbs', label: 'Cargo' })
+              const visible = specs.slice(0, 6)
+              if (visible.length === 0) return null
+              return (
+                <div className="mt-6 grid grid-cols-3 gap-2">
+                  {visible.map((s, i) => (
+                    <div
+                      key={i}
+                      className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center"
+                    >
+                      <p className="text-base font-medium text-[#1A1A2E] leading-none">
+                        {s.value}
+                        {s.unit && <span className="text-xs text-[#7A7A8C] ml-0.5">{s.unit}</span>}
+                      </p>
+                      <p className="text-[11px] text-[#7A7A8C] mt-1">{s.label}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {product.maxSystemWeightLbs != null && (
-                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
-                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.maxSystemWeightLbs}<span className="text-xs text-[#7A7A8C] ml-0.5">lbs</span></p>
-                  <p className="text-[11px] text-[#7A7A8C] mt-1">Max load</p>
-                </div>
-              )}
-              {product.motorTorqueNm != null && (
-                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
-                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.motorTorqueNm}<span className="text-xs text-[#7A7A8C] ml-0.5">Nm</span></p>
-                  <p className="text-[11px] text-[#7A7A8C] mt-1">Torque</p>
-                </div>
-              )}
-              {product.estimatedRealRangeMi != null && (
-                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
-                  <p className="text-base font-medium text-[#1A1A2E] leading-none">~{product.estimatedRealRangeMi}<span className="text-xs text-[#7A7A8C] ml-0.5">mi</span></p>
-                  <p className="text-[11px] text-[#7A7A8C] mt-1">Real range</p>
-                </div>
-              )}
-              {product.batteryWh != null && (
-                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
-                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.batteryWh}<span className="text-xs text-[#7A7A8C] ml-0.5">Wh</span></p>
-                  <p className="text-[11px] text-[#7A7A8C] mt-1">Battery</p>
-                </div>
-              )}
-              {product.maxChildPassengers != null && product.maxChildPassengers > 0 && (
-                <div className="p-2.5 bg-white rounded-lg border border-[#E8E8EC] text-center">
-                  <p className="text-base font-medium text-[#1A1A2E] leading-none">{product.maxChildPassengers}</p>
-                  <p className="text-[11px] text-[#7A7A8C] mt-1">Kids</p>
-                </div>
-              )}
-            </div>
+              )
+            })()}
 
             {/* Warranty & availability */}
             <div className="mt-6 flex flex-wrap gap-4 text-xs text-[#7A7A8C]">
@@ -713,25 +732,44 @@ export default async function ProductPage({ params: paramsPromise }: Args) {
           </div>
         )}
 
-        {/* ─── Best for / Not for tags (below the Take) ─── */}
+        {/* ─── Best for / Not for (below the Take) ─── */}
         {((product.bestFor && product.bestFor.length > 0) || (product.notFor && product.notFor.length > 0)) && (
-          <div className="mt-8 max-w-3xl flex flex-wrap gap-2">
-            {product.bestFor?.map((item, i) => (
-              <span
-                key={`bf-${i}`}
-                className="text-xs font-medium bg-[#1A1A2E]/5 text-[#1A1A2E] px-3 py-1.5 rounded-full"
-              >
-                {item.tag}
-              </span>
-            ))}
-            {product.notFor?.map((item, i) => (
-              <span
-                key={`nf-${i}`}
-                className="text-xs font-medium bg-red-50 text-red-600/80 px-3 py-1.5 rounded-full"
-              >
-                Not for: {item.text}
-              </span>
-            ))}
+          <div className="mt-10 pt-8 border-t border-[#E8E8EC]/60 max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-8">
+            {product.bestFor && product.bestFor.length > 0 && (
+              <div>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7A8C] mb-3">
+                  Best for
+                </h3>
+                <ul className="space-y-2">
+                  {product.bestFor.map((item, i) => (
+                    <li
+                      key={`bf-${i}`}
+                      className="flex gap-2 text-sm text-[#1A1A2E] leading-[1.5]"
+                    >
+                      <span className="text-[#3B6D11] shrink-0" aria-hidden="true">✓</span>
+                      <span>{item.tag}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {product.notFor && product.notFor.length > 0 && (
+              <div>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7A8C] mb-3">
+                  Not for
+                </h3>
+                <ul className="space-y-2">
+                  {product.notFor.map((item, i) => (
+                    <li
+                      key={`nf-${i}`}
+                      className="text-sm text-[#7A7A8C] leading-[1.5]"
+                    >
+                      {item.text}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
 

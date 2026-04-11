@@ -488,6 +488,12 @@ export default async function ModelFamilyPage({ params: paramsPromise }: Args) {
                 <strong className="font-semibold">{familyMeta.decisionHelper.title}</strong>{' '}
                 <span className="text-[#1A1A2E]/85">{familyMeta.decisionHelper.body}</span>
               </p>
+              <Link
+                href="/chat"
+                className="mt-2 inline-block text-sm font-medium text-[#E85D3A] hover:underline"
+              >
+                Ask our matchmaker →
+              </Link>
             </div>
           </div>
         )}
