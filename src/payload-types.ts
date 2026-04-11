@@ -904,6 +904,17 @@ export interface Product {
       }[]
     | null;
   /**
+   * 2-3 non-hero photos: kids riding, cargo hauling, city use
+   */
+  lifestyleImages?:
+    | {
+        image: number | Media;
+        caption?: string | null;
+        context?: ('kids' | 'cargo' | 'commute' | 'adventure' | 'lifestyle') | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
    * Overall Carryish score (1-10)
    */
   overallScore?: number | null;
@@ -1884,6 +1895,14 @@ export interface ProductsSelect<T extends boolean = true> {
     | {
         question?: T;
         answer?: T;
+        id?: T;
+      };
+  lifestyleImages?:
+    | T
+    | {
+        image?: T;
+        caption?: T;
+        context?: T;
         id?: T;
       };
   overallScore?: T;

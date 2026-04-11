@@ -130,6 +130,36 @@ export const Products: CollectionConfig<'products'> = {
           ],
         },
 
+        // ─── Lifestyle Images ───
+        {
+          label: 'Lifestyle Images',
+          fields: [
+            {
+              name: 'lifestyleImages',
+              type: 'array',
+              label: 'Lifestyle Images',
+              admin: {
+                description: '2-3 non-hero photos: kids riding, cargo hauling, city use',
+              },
+              fields: [
+                { name: 'image', type: 'upload', relationTo: 'media', required: true },
+                { name: 'caption', type: 'text' },
+                {
+                  name: 'context',
+                  type: 'select',
+                  options: [
+                    { label: 'Kids riding', value: 'kids' },
+                    { label: 'Cargo hauling', value: 'cargo' },
+                    { label: 'City commute', value: 'commute' },
+                    { label: 'Adventure', value: 'adventure' },
+                    { label: 'Lifestyle', value: 'lifestyle' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+
         // ─── Carryish Scores ───
         {
           label: 'Scores',
